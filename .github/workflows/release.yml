@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20 # Sử dụng bản LTS ổn định để tránh lỗi build
+          node-version: 24 # Nâng cấp lên Node 24 để tương thích với Electron 41
           cache: "npm"
 
       - name: Install dependencies
@@ -35,4 +35,4 @@ jobs:
       - name: Build and Publish Electron App
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run build # Tạm thời bỏ --publish always để kiểm tra
+        run: npm run build -- --publish always
