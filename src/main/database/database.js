@@ -6,14 +6,14 @@ const fs = require("fs");
 /**
  * CẤU HÌNH ĐƯỜNG DẪN DATABASE
  */
-// const userDataPath = app.getPath("userData");
-// const dbPath = path.join(userDataPath, "bakery.db");
-// if (!fs.existsSync(userDataPath)) {
-//   fs.mkdirSync(userDataPath, { recursive: true });
-// }
+const userDataPath = app.getPath("userData");
+const dbPath = path.join(userDataPath, "bakery.db");
+if (!fs.existsSync(userDataPath)) {
+  fs.mkdirSync(userDataPath, { recursive: true });
+}
 
 // dùng đường dẫn tạm thời trong quá trình phát triển để dễ dàng reset DB
-const dbPath = path.join(process.cwd(), "bakery.db");
+// const dbPath = path.join(process.cwd(), "bakery.db");
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
