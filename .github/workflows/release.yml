@@ -30,7 +30,5 @@ jobs:
 
       - name: Build and Publish Electron App
         env:
-          # GITHUB_TOKEN là biến môi trường tự động có sẵn trong GitHub Actions
-          # dùng để cấp quyền upload file vào phần Release
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build -- --publish always
