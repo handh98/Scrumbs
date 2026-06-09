@@ -12,6 +12,8 @@ jobs:
     runs-on: windows-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # Chấp nhận chạy Actions trên Node 24 theo khuyến nghị
+    permissions:
+      contents: write # Cấp quyền ghi để tạo và tải lên Release
 
     steps:
       - name: Checkout code
