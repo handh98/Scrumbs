@@ -26,9 +26,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: |
-          npm ci
-          node node_modules/electron/install.js
+        run: npm install
 
       # Quan trọng: Rebuild sqlite3 để tương thích với môi trường chạy
       - name: Rebuild SQLite3
