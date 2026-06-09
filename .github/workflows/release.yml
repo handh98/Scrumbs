@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # Chấp nhận chạy Actions trên Node 24 theo khuyến nghị
 
     steps:
       - name: Checkout code
@@ -18,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24 # Nâng cấp lên Node 24 để tương thích với Electron 41
           cache: "npm"
 
       - name: Install dependencies
