@@ -4,7 +4,7 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "chcp 65001 > nul && electron .",
-    "rebuild": "electron-rebuild -f -w sqlite3",
+    "rebuild": "@electron/rebuild -f -w sqlite3",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "build": "electron-builder"
@@ -23,12 +23,20 @@
     "@electron/rebuild": "^4.0.4"
   },
   "dependencies": {
+    "electron-log": "^4.4.8",
     "electron-updater": "^6.8.9",
     "sqlite3": "^5.0.2"
   },
   "build": {
     "appId": "com.tiembanh.app",
     "productName": "Scrumbs",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "handh98",
+        "repo": "Scrumbs"
+      }
+    ],
     "win": {
       "target": [
         "nsis"
