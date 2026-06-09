@@ -1,0 +1,51 @@
+/* Trạng thái tồn kho */
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-ok {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-low {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status-empty {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Layout Modal form */
+.form-row-inv {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.half-width {
+  flex: 1;
+}
+
+.half-width input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#import-modal-card {
+  width: 650px !important;
+}
+
+.batch-card {
+  width: 700px !important;
+}
+
+#batch-list-body td {
+  text-align: center;
+}

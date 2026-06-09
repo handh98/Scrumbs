@@ -1,0 +1,229 @@
+<div>
+  <div class="page-header">
+    <h2 class="title-primary">
+      <img src="src/renderer/assets/menu.svg" alt="Menu Icon" /> Menu Bánh
+    </h2>
+    <div class="header-actions">
+      <div class="search-wrapper">
+        <input
+          type="text"
+          id="menu-search"
+          placeholder="🔍 Tìm tên món..."
+          oninput="window.searchMenu()"
+        />
+      </div>
+      <button class="btn-primary" onclick="window.openMenuModal()">
+        + Thêm món
+      </button>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table class="menu-main-table">
+      <thead>
+        <tr>
+          <th class="col-stt">STT</th>
+          <th class="col-name">Tên món</th>
+          <th class="col-price">Giá bán</th>
+          <th class="col-margin">Lợi nhuận</th>
+          <th class="col-note">Ghi chú</th>
+          <th class="col-action">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody id="menu-list-body"></tbody>
+    </table>
+  </div>
+  <div id="menu-pagination" class="pagination-wrapper"></div>
+</div>
+
+<div id="menu-modal" class="modal-overlay" data-mode="add" data-editing-id="">
+  <div class="modal-card menu-modal-card">
+    <div class="modal-header">
+      <h3 id="modal-form-title">Thiết lập món mới</h3>
+      <button onclick="window.closeMenuModal()" class="btn-close-modal">
+        ✕
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-section">
+        <div class="form-group mb-15">
+          <label class="menu-section-label"
+            >1. Tên món hiển thị trong Menu:</label
+          >
+          <input
+            type="text"
+            id="m-name"
+            placeholder="VD: Bánh kem dâu tây size vừa..."
+            class="input-menu-name"
+          />
+        </div>
+      </div>
+
+      <div class="form-section">
+        <label class="menu-section-label">2. Thành phần công thức:</label>
+        <div class="recipe-header">
+          <div class="flex-2">Công thức</div>
+          <div class="flex-1">Tỉ lệ</div>
+          <div class="flex-1">Giá gốc</div>
+          <div class="col-action-wrap"></div>
+        </div>
+        <div id="recipe-container"></div>
+        <button
+          type="button"
+          class="btn-secondary mt-10"
+          onclick="window.addRecipeRow()"
+        >
+          + Thêm công thức
+        </button>
+      </div>
+
+      <div class="form-section">
+        <label class="menu-section-label"
+          >3. Nguyên liệu thêm trực tiếp (Topping):</label
+        >
+        <div class="recipe-header">
+          <div class="flex-2">Nguyên liệu</div>
+          <div class="flex-1">Số lượng</div>
+          <div class="col-action-wrap"></div>
+        </div>
+        <div id="raw-ingredient-container"></div>
+        <button
+          class="btn-secondary mt-10"
+          type="button"
+          onclick="window.addRawIngredientRow()"
+        >
+          + Thêm nguyên liệu
+        </button>
+      </div>
+
+      <div class="form-section">
+        <label class="menu-section-label">4. Chi phí bao bì đóng gói:</label>
+        <div class="recipe-header">
+          <div class="flex-2">Loại bao bì / Vật tư</div>
+          <div class="flex-1">Số lượng</div>
+          <div class="col-action-wrap"></div>
+        </div>
+        <div id="pkg-container"></div>
+        <button
+          class="btn-secondary mt-10"
+          type="button"
+          onclick="window.addPkgRow()"
+        >
+          + Thêm bao bì
+        </button>
+      </div>
+
+      <div class="form-section">
+        <label class="menu-section-label"
+          >4b. Danh sách nhân bánh cho phép (Nếu có):</label
+        >
+        <div class="recipe-header fillings-header" style="display: none">
+          <div class="flex-2">Nhân bánh</div>
+          <div class="flex-1 text-center">Mặc định</div>
+          <div class="col-action-wrap"></div>
+        </div>
+        <div id="menu-fillings-container"></div>
+        <button
+          class="btn-secondary mt-10"
+          type="button"
+          onclick="window.addMenuFillingRow()"
+        >
+          + Thêm nhân bánh
+        </button>
+      </div>
+
+      <div class="form-section">
+        <label class="menu-section-label"
+          >5. Chi phí vận hành & Lợi nhuận:</label
+        >
+        <div class="row-flex mt-10">
+          <div class="form-group flex-1">
+            <label>Điện:</label>
+            <input
+              type="text"
+              id="m-elec"
+              min="0"
+              oninput="window.calculateTotal()"
+            />
+          </div>
+          <div class="form-group flex-1">
+            <label>Khấu hao:</label>
+            <input
+              type="text"
+              id="m-depr"
+              min="0"
+              oninput="window.calculateTotal()"
+            />
+          </div>
+        </div>
+        <div class="row-flex mt-10">
+          <div class="form-group flex-1">
+            <label>Tiền công:</label>
+            <input
+              type="text"
+              id="m-labor"
+              min="0"
+              oninput="window.calculateTotal()"
+            />
+          </div>
+          <div class="form-group flex-1">
+            <label>% Lợi nhuận:</label>
+            <input
+              type="text"
+              id="m-margin"
+              readonly
+              placeholder="Tự động tính..."
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <label class="menu-section-label">6. Ghi chú món ăn:</label>
+        <textarea
+          id="m-note"
+          placeholder="Nhập ghi chú hoặc lưu ý đặc biệt cho món ăn này..."
+          rows="2"
+        ></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <div class="price-summary">
+        <div style="font-size: 13px; color: #666; margin-bottom: 5px">
+          Tổng vốn & chi phí:
+          <span
+            id="m-total-cost-display"
+            style="font-weight: bold; color: #5d4037"
+            >0</span
+          >đ
+        </div>
+        Giá bán dự kiến:
+        <input
+          type="text"
+          id="m-final-price"
+          placeholder="0"
+          style="
+            width: 120px;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            text-align: right;
+            font-weight: bold;
+            color: var(--deep-pink);
+          "
+        />
+        đ
+      </div>
+      <button
+        id="modal-submit-btn"
+        class="btn-primary"
+        onclick="window.saveMenu()"
+      >
+        <img src="src/renderer/assets/save.svg" alt="save Icon" class="icon" />
+        &nbsp;Lưu món
+      </button>
+    </div>
+  </div>
+</div>

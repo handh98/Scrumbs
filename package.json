@@ -1,0 +1,49 @@
+{
+  "name": "crumbs-app",
+  "version": "1.0.6",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "chcp 65001 > nul && electron .",
+    "rebuild": "electron-rebuild -f -w sqlite3",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build": "electron-builder"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/handh98/Scrumbs.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Ứng dụng quản lý tiệm bánh - Ver 1",
+  "devDependencies": {
+    "electron": "^41.6.0",
+    "electron-builder": "^26.8.1",
+    "electron-rebuild": "^2.0.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "sqlite3": "^5.0.2"
+  },
+  "build": {
+    "appId": "com.tiembanh.app",
+    "productName": "Scrumbs",
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "src/renderer/assets/icon.ico"
+    },
+    "nsis": {
+      "installerIcon": "src/renderer/assets/icon.ico",
+      "uninstallerIcon": "src/renderer/assets/icon.ico",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Scrumbs"
+    }
+  }
+}

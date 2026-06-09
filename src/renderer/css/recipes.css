@@ -1,0 +1,258 @@
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+.form-row-sub {
+  display: flex;
+  gap: 10px;
+}
+.section-label {
+  display: block;
+  font-weight: bold;
+  color: #5d4037;
+  margin: 18px 0 8px 0;
+}
+
+/* Tabs Styling */
+.recipe-tabs-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #f8f0f0;
+  padding-bottom: 5px;
+}
+.tab-btn {
+  padding: 8px 20px;
+  border: none;
+  background: #fdf8f8;
+  cursor: pointer;
+  font-weight: 600;
+  color: #a1887f;
+  border-radius: 10px 10px 0 0;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+.tab-btn.active {
+  background-color: var(--pastel-pink-bold);
+  color: white;
+}
+.tab-btn:hover:not(.active) {
+  background-color: #fce4ec;
+  color: var(--deep-pink);
+}
+
+/* Modal & Table Sizing */
+#recipe-modal-card {
+  width: 55%;
+}
+.recipes-main-table th.col-stt {
+  width: 5%;
+}
+.recipes-main-table th.col-name {
+  width: 25%;
+}
+.recipes-main-table th.col-time {
+  width: 12%;
+}
+.recipes-main-table th.col-output {
+  width: 13%;
+}
+.recipes-main-table th.col-cost {
+  width: 15%;
+  white-space: nowrap;
+}
+.recipes-main-table th.col-note {
+  width: 15%;
+}
+.recipes-main-table th.col-actions {
+  width: 15%;
+}
+
+.recipe-ingredients-table th.ing-stt {
+  width: 8%;
+}
+.recipe-ingredients-table th.ing-name {
+  width: 44%;
+}
+.recipe-ingredients-table th.ing-qty {
+  width: 16%;
+}
+.recipe-ingredients-table th.ing-unit {
+  width: 12%;
+}
+.recipe-ingredients-table th.ing-cost {
+  width: 15%;
+  text-align: right;
+}
+.recipe-ingredients-table th.ing-actions {
+  width: 5%;
+}
+.recipe-ingredients-table td:nth-child(5) {
+  text-align: right;
+}
+
+.btn-add-ing {
+  margin-top: 21px;
+}
+
+/* Qty Input */
+.table-qty-input {
+  width: 75px;
+  padding: 5px 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  outline: none;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Cost Summary */
+.cost-summary-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  align-items: center;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.cost-label {
+  font-weight: bold;
+  color: var(--text-chocolate);
+}
+.cost-value {
+  color: var(--deep-pink);
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* Steps List */
+.steps-vertical-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.step-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.step-number {
+  background-color: var(--pastel-pink-bold);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+.step-textarea {
+  flex: 1;
+  field-sizing: content;
+  min-height: 50px;
+  resize: none;
+  overflow: hidden;
+}
+.step-actions-row {
+  display: flex;
+}
+.btn-add-step {
+  margin-left: auto;
+}
+.note-group {
+  margin-top: 20px;
+}
+
+/* Delete Buttons */
+.btn-delete-row,
+.btn-delete-step {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  transition: transform 0.1s ease;
+}
+.btn-delete-row:hover,
+.btn-delete-step:hover {
+  transform: scale(1.2);
+}
+
+/* ==========================================================================
+   ⚡ CHẾ ĐỘ VIEW (XEM CHI TIẾT)
+   ========================================================================== */
+
+/* Ẩn các thành phần chỉnh sửa */
+.view-mode .edit-visible,
+.view-mode .ingredient-picker-row,
+.view-mode th.ing-actions,
+.view-mode td.edit-visible,
+.view-mode .hide-empty {
+  display: none !important;
+}
+
+/* Chuẩn hóa toàn bộ Input/Textarea khi bị disabled trong view-mode */
+.view-mode input:disabled,
+.view-mode textarea:disabled,
+.view-mode select:disabled {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: var(--text-chocolate) !important;
+  resize: none !important;
+  -webkit-appearance: none;
+}
+
+/* Các ngoại lệ cho input đặc thù */
+.view-mode #rec-name:disabled {
+  font-size: 15px !important;
+  color: var(--deep-pink) !important;
+}
+
+.view-mode #rec-note:disabled {
+  font-weight: 500 !important;
+  line-height: 1.6 !important;
+  display: block !important;
+  width: 100% !important;
+}
+
+/* Giao diện bong bóng chat cho các bước thực hiện */
+.view-mode .step-row {
+  align-items: flex-start !important;
+  margin-bottom: 16px !important;
+}
+
+.view-mode .step-row textarea:disabled {
+  background: var(--bg-pink) !important;
+  border: 1px solid var(--accent-pink) !important;
+  padding: 12px 16px !important;
+  border-radius: 16px !important;
+  border-top-left-radius: 4px !important;
+  font-weight: 500 !important;
+  line-height: 1.6 !important;
+  width: 100% !important;
+  display: block !important;
+  overflow-y: hidden !important;
+}
+
+/* Định dạng Label (Tiêu đề trường) */
+.view-mode label.section-label,
+.view-mode .form-group label,
+.view-mode .note-group label {
+  color: #a1887f !important;
+  font-size: 13px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px !important;
+  display: block !important;
+}

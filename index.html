@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+    />
+    <title>Crumbs</title>
+    <link rel="stylesheet" href="src/renderer/css/global.css" />
+  </head>
+  <body>
+    <div class="app-layout">
+      <nav class="sidebar" id="sidebar">
+        <h2 class="sidebar-title">DANH MỤC</h2>
+        <!-- Bổ sung div menu-group ở đây -->
+        <div class="menu-group">
+          <button class="nav-btn active" onclick="navigate('dashboard')">
+            <img
+              src="src/renderer/assets/dashboard.svg"
+              alt="Dashboard Icon"
+              class="icon"
+            />
+            Tổng quan
+          </button>
+          <button class="nav-btn" onclick="navigate('knowledge')">
+            <img
+              src="src/renderer/assets/knowledge.svg"
+              alt="Knowledge Icon"
+              class="icon"
+            />
+            Kiến Thức
+          </button>
+          <button class="nav-btn" onclick="navigate('ingredients')">
+            <img
+              src="src/renderer/assets/price.svg"
+              alt="Price Icon"
+              class="icon"
+            />
+            Giá vật tư
+          </button>
+          <button class="nav-btn" onclick="navigate('recipes')">
+            <img
+              src="src/renderer/assets/recipe.svg"
+              alt="Recipe Icon"
+              class="icon"
+            />Công thức
+          </button>
+          <button class="nav-btn" onclick="navigate('menu')">
+            <img
+              src="src/renderer/assets/menu.svg"
+              alt="Menu Icon"
+              class="icon"
+            />Menu Bánh
+          </button>
+          <button class="nav-btn" onclick="navigate('orders')">
+            <img
+              src="src/renderer/assets/orders.svg"
+              alt="Orders Icon"
+              class="icon"
+            />Đơn Hàng
+          </button>
+          <button class="nav-btn" onclick="navigate('statistics')">
+            <img
+              src="src/renderer/assets/revenue.svg"
+              alt="Stats Icon"
+              class="icon"
+            />
+            Thống Kê
+          </button>
+          <button class="nav-btn" onclick="navigate('inventory')">
+            <img
+              src="src/renderer/assets/inventory.svg"
+              alt="Inventory Icon"
+              class="icon"
+            />Tồn Kho
+          </button>
+          <button class="nav-btn" onclick="navigate('customers')">
+            <img
+              src="src/renderer/assets/customers.svg"
+              alt="Customers Icon"
+              class="icon"
+            />Khách Hàng
+          </button>
+        </div>
+      </nav>
+
+      <main class="main-content">
+        <div id="book-frame" class="book-frame">
+          <div id="page-render" class="fade-in"></div>
+        </div>
+      </main>
+    </div>
+          </button>
+        </div>
+      </nav>
+
+      <main class="main-content">
+        <div id="book-frame" class="book-frame">
+          <div id="page-render" class="fade-in"></div>
+        </div>
+      </main>
+    </div>
+
+    <script src="src/renderer/js/utils.js"></script>
+    <script src="src/renderer/js/router.js"></script>
+    <script src="src/renderer/js/ui-core.js"></script>
+    <script src="src/renderer/js/ingredients.js"></script>
+  </body>
+</html>

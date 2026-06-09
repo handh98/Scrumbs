@@ -1,0 +1,205 @@
+<div class="knowledge-page-container">
+  <div class="page-header">
+    <h2 class="title-primary">
+      <img src="src/renderer/assets/knowledge.svg" alt="Knowledge Icon" />
+      Kiến Thức về Bánh
+    </h2>
+    <div class="header-actions">
+      <div class="search-wrapper">
+        <input
+          type="text"
+          id="knowledge-search"
+          placeholder="🔍 Tìm kiến thức (Gluten, men...)"
+          oninput="window.searchKnowledge()"
+        />
+      </div>
+      <button class="btn-secondary me-8" onclick="window.openCategoryModal()">
+        🏷️ Danh mục
+      </button>
+      <button class="btn-primary" onclick="window.openKnowledgeModal('add')">
+        + Thêm Kiến Thức
+      </button>
+    </div>
+  </div>
+
+  <div class="category-filter-bar" id="knowledge-cat-filters"></div>
+  <div class="knowledge-grid" id="knowledge-grid-body"></div>
+  <div id="knowledge-pagination" class="pagination-wrapper"></div>
+</div>
+
+<div
+  id="knowledge-modal"
+  class="modal-overlay"
+  data-mode="add"
+  data-editing-id=""
+>
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="knowledge-modal-title">Thêm Kiến Thức Mới</h3>
+      <button class="btn-close-modal" onclick="window.closeKnowledgeModal()">
+        ✕
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group flex-2">
+          <label>Tiêu đề bài viết (Phải duy nhất để làm link dẫn):</label>
+          <input
+            type="text"
+            id="k-title"
+            placeholder="Ví dụ: Gluten, Bột nở, Ủ chậm..."
+          />
+        </div>
+        <div class="form-group flex-1">
+          <label>Danh mục phân loại:</label>
+          <select id="k-category-id"></select>
+        </div>
+      </div>
+
+      <div class="form-section mt-15">
+        <label class="label-bold">Mô tả ngắn (Hiển thị ngoài trang chủ):</label>
+        <input
+          type="text"
+          id="k-summary"
+          placeholder="Tóm tắt ngắn gọn 1-2 câu về bài viết..."
+        />
+      </div>
+
+      <div class="form-section">
+        <label class="label-bold">Nội dung chi tiết bài viết:</label>
+        <div class="help-text">
+          💡 Mẹo: Gõ <b>[[Tên bài viết khác]]</b> để tự động tạo link liên kết.
+          Ví dụ: <i>"Bột mì chứa nhiều [[Gluten]]..."</i>
+        </div>
+        <textarea
+          id="k-content"
+          class="tall-textarea"
+          placeholder="Nhập kiến thức chuyên sâu tại đây..."
+        ></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="window.closeKnowledgeModal()">
+        Hủy
+      </button>
+      <button
+        id="knowledge-submit-btn"
+        class="btn-primary"
+        onclick="window.saveKnowledge()"
+      >
+        Lưu Bài Viết
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="knowledge-detail-modal" class="modal-overlay">
+  <div class="modal-card detail-card">
+    <div class="modal-header">
+      <div>
+        <span class="badge mb-5" id="view-k-badge">Danh mục</span>
+        <h2 id="view-k-title" class="detail-title">Tiêu đề</h2>
+      </div>
+      <button
+        class="btn-close-modal"
+        onclick="window.closeKnowledgeDetailModal()"
+      >
+        ✕
+      </button>
+    </div>
+    <div class="modal-body read-body">
+      <div class="article-content" id="view-k-content"></div>
+    </div>
+    <div class="modal-footer footer-between">
+      <span class="date-text" id="view-k-date">Ngày tạo: --/--/----</span>
+      <div class="action-group">
+        <button class="btn-secondary btn-edit" id="view-k-btn-edit">
+          <img
+            src="src/renderer/assets/edit.svg"
+            alt="Edit Icon"
+            class="icon"
+          />
+        </button>
+        <button class="btn-secondary btn-delete" id="view-k-btn-delete">
+          <img
+            src="src/renderer/assets/trash.svg"
+            alt="Delete Icon"
+            class="icon"
+          />
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="category-modal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>🏷️ Quản Lý Danh Mục</h3>
+      <button class="btn-close-modal" onclick="window.closeCategoryModal()">
+        ✕
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="category-form-section">
+        <div class="flex-2">
+          <label>Tên danh mục:</label>
+          <input
+            type="text"
+            id="cat-name-input"
+            placeholder="Ví dụ: Nguyên liệu, Lên men..."
+          />
+          <input type="hidden" id="cat-id-input" value="" />
+        </div>
+        <div>
+          <label>Màu nền:</label>
+          <input
+            type="color"
+            id="cat-bg-input"
+            class="color-picker-input"
+            value="#ffe9db"
+          />
+        </div>
+        <div>
+          <label>Màu chữ:</label>
+          <input
+            type="color"
+            id="cat-text-input"
+            class="color-picker-input"
+            value="#bc5a1a"
+          />
+        </div>
+        <div class="action-group">
+          <button
+            class="btn-primary"
+            id="btn-save-cat"
+            onclick="window.saveCategory()"
+          >
+            Thêm
+          </button>
+          <button
+            class="btn-secondary"
+            id="btn-cancel-cat"
+            style="display: none"
+            onclick="window.resetCategoryForm()"
+          >
+            Hủy
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container cat-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40%">Tên danh mục</th>
+              <th style="width: 30%">Hiển thị mẫu</th>
+              <th style="width: 30%">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="category-list-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

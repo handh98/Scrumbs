@@ -1,0 +1,369 @@
+.dashboard-wrapper {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background-color: #f8fafc;
+  font-family: inherit;
+}
+
+/* ============================
+   KPI CARDS
+============================ */
+.kpi-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.kpi-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.02),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+  border: 1px solid #edf2f7;
+}
+
+.kpi-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.kpi-icon img {
+  width: 56px;
+  height: 56px;
+}
+
+.kpi-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-title {
+  font-size: 13px;
+  color: #718096;
+  font-weight: 500;
+}
+
+.kpi-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 4px 0 0 0;
+}
+
+/* ============================
+   MAIN PANEL LAYOUTS
+============================ */
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 72% 28%;
+  gap: 20px;
+}
+
+.dashboard-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.dashboard-panel {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #edf2f7;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0;
+}
+
+.panel-title img.icon {
+  width: 25px;
+  height: 25px;
+  margin-bottom: -4px;
+}
+
+.panel-subtitle {
+  font-size: 12px;
+  color: #a0aec0;
+}
+
+.panel-body {
+  padding: 20px;
+  flex: 1;
+}
+
+.no-data {
+  text-align: center;
+  color: #a0aec0;
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+/* ============================
+   TABLES & BADGES
+============================ */
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.dashboard-table th {
+  background: #f7fafc;
+  color: #4a5568;
+  font-weight: 600;
+  padding: 12px;
+  text-align: left;
+  border-bottom: 2px solid #edf2f7;
+}
+
+.dashboard-table td {
+  padding: 12px;
+  border-bottom: 1px solid #edf2f7;
+  color: #2d3748;
+  vertical-align: middle;
+}
+
+.dashboard-table tr:hover {
+  background-color: #f8fafc;
+}
+
+.cake-item-tag {
+  display: inline-block;
+  background: #edf2f7;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin: 2px;
+}
+
+.badge-completed {
+  display: inline-block;
+  background-color: #e8f5e9;
+  border: 1px solid #81c784;
+  color: #2e7d32;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* Trạng thái nhanh (Quick Status Select) */
+.quick-status-select {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid #cbd5e0;
+  background-color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  color: #2d3748;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  padding: 6px 10px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.quick-status-select.status-pending {
+  background-color: #fffde7;
+  border-color: #fcb941;
+  color: #b78103;
+}
+
+.quick-status-select.status-processing {
+  background-color: #e3f2fd;
+  border-color: #42a5f5;
+  color: #1565c0;
+}
+
+/* ============================
+   LOW STOCK ALERTS (WITH TABS & SCROLL)
+============================ */
+#low-stock-body {
+  max-height: 420px; /* Độ cao để kích hoạt cuộn khi danh sách dài */
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+#low-stock-body::-webkit-scrollbar {
+  width: 5px;
+}
+#low-stock-body::-webkit-scrollbar-thumb {
+  background: var(--pastel-pink-bold);
+  border-radius: 10px;
+}
+
+.widget-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  background: var(--bg-pink);
+  padding: 4px;
+  border-radius: 25px;
+  width: fit-content;
+  border: 1px solid var(--border-soft);
+}
+
+.tab-item {
+  border: none;
+  background: none;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-chocolate);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-item.active {
+  background-color: var(--deep-pink);
+  color: white;
+  box-shadow: 0 2px 8px rgba(255, 77, 109, 0.3);
+}
+
+.low-stock-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--white);
+  border-radius: var(--radius-small);
+  border: 1px solid var(--border-soft);
+  margin-bottom: 8px;
+  transition: transform 0.2s ease;
+}
+
+.low-stock-item:hover {
+  transform: translateX(4px);
+  background-color: var(--pastel-pink-hover);
+}
+
+.low-stock-name {
+  font-weight: 700;
+  color: var(--text-chocolate);
+  font-size: 13px;
+}
+
+.low-stock-badge {
+  background: #fff5f5;
+  color: #e53e3e;
+  border: 1px solid #feb2b2;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+/* ============================
+   HTML CHARTS
+============================ */
+.chart-flex-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 220px;
+  padding-top: 20px;
+}
+
+.chart-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+}
+
+.chart-bar-wrapper {
+  height: 160px;
+  width: 32px;
+  background: #f7fafc;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.chart-bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, #3182ce, #63b3ed);
+  border-radius: 6px;
+  transition: height 0.5s ease;
+  cursor: pointer;
+}
+
+.chart-bar-fill:hover {
+  background: #2b6cb0;
+}
+
+.chart-amount-tooltip {
+  font-size: 10px;
+  font-weight: bold;
+  color: #4a5568;
+  margin-bottom: 2px;
+}
+
+.chart-date-label {
+  font-size: 11px;
+  color: #718096;
+}
+
+/* ============================
+   TOP CAKES BARS
+============================ */
+.top-cake-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.top-cake-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.top-cake-name {
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.top-cake-qty {
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.progress-bar-bg {
+  height: 8px;
+  background: #edf2f7;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #d69e2e, #f6e05e);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}

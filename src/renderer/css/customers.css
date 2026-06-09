@@ -1,0 +1,55 @@
+/* ==========================================================================
+   FILE: customers.css
+   ========================================================================== */
+
+/* CHIA TỶ LỆ CỘT BẢNG KHÁCH HÀNG */
+.customers-table .col-stt {
+  width: 5%;
+}
+.customers-table .col-name {
+  width: 22%;
+}
+.customers-table .col-phone {
+  width: 15%;
+}
+.customers-table .col-stats {
+  width: 20%;
+}
+.customers-table .col-address {
+  width: 23%;
+}
+.customers-table .col-action {
+  width: 15%;
+}
+
+/* HIGHLIGHT & STATS */
+.cust-name-text {
+  font-weight: bold;
+  color: var(--text-chocolate);
+}
+
+.mt-15 {
+  margin-top: 15px;
+}
+
+.stats-badge-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-item {
+  font-size: 12.5px;
+  color: #666;
+}
+
+.stat-highlight {
+  color: var(--deep-pink);
+  font-weight: bold;
+}
+
+/* MODAL KÍCH THƯỚC NHỎ GỌN */
+.customer-modal-card {
+  max-width: 450px;
+  width: 95%;
+}

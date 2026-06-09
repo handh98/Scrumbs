@@ -1,0 +1,8 @@
+node_modules/
+dist/
+out/
+build/
+*.exe
+# Database files
+bakery.db
+backups/

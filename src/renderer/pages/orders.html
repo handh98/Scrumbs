@@ -1,0 +1,211 @@
+<div>
+  <div class="page-header">
+    <h2 class="title-primary">
+      <img src="src/renderer/assets/orders.svg" alt="Order Icon" /> Quản Lý Đơn
+      Hàng
+    </h2>
+    <button class="btn-primary" onclick="window.openOrderModal()">
+      + Thêm đơn hàng
+    </button>
+  </div>
+
+  <div class="table-toolbar">
+    <div class="search-box-wrapper">
+      <input
+        type="text"
+        id="order-search"
+        placeholder="🔍 Tìm tên khách hàng..."
+        oninput="window.searchOrders()"
+      />
+    </div>
+
+    <div class="filter-group-wrapper">
+      <select id="filter-status" onchange="window.loadOrders()">
+        <option value="all">Tất cả trạng thái</option>
+        <option value="pending">Chờ xử lý</option>
+        <option value="processing">Đang làm bánh</option>
+        <option value="completed">Hoàn thành đơn</option>
+        <option value="cancelled">Đã hủy</option>
+      </select>
+
+      <select id="sort-delivery-date" onchange="window.loadOrders()">
+        <option value="desc">Ngày giao: Mới nhất</option>
+        <option value="asc">Ngày giao: Cũ nhất</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table class="orders-table">
+      <thead>
+        <tr>
+          <th class="col-id">Mã ĐH</th>
+          <th class="col-customer">Khách hàng</th>
+          <th class="col-date">Ngày giao</th>
+          <th class="col-status">Trạng thái</th>
+          <th class="col-total">Tổng tiền</th>
+          <th class="col-note">Ghi chú</th>
+          <th class="col-action">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody id="order-list-body"></tbody>
+    </table>
+  </div>
+  <div id="order-pagination" class="pagination-wrapper"></div>
+</div>
+
+<div id="order-modal" class="modal-overlay" data-mode="add">
+  <div id="order-modal-card" class="modal-card">
+    <div class="modal-header">
+      <h3 id="order-modal-title">Tạo Đơn Hàng Mới</h3>
+      <div class="header-actions">
+        <button
+          type="button"
+          class="btn-close-modal"
+          onclick="window.closeOrderModal()"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group row-item autocomplete-wrapper">
+          <label>Tên khách hàng <span class="required">*</span></label>
+          <input
+            type="text"
+            id="o-customer"
+            placeholder="Nhập tên khách..."
+            oninput="window.onCustomerInput()"
+            autocomplete="off"
+          />
+          <div id="customer-dropdown" class="autocomplete-dropdown"></div>
+        </div>
+        <div class="form-group row-item">
+          <label>Số điện thoại</label>
+          <input type="text" id="o-phone" placeholder="Nhập SĐT..." />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group row-item-full">
+          <label>Địa chỉ giao hàng</label>
+          <input
+            type="text"
+            id="o-address"
+            placeholder="Nhập địa chỉ giao bánh..."
+          />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group row-item">
+          <label>Ngày giao bánh <span class="required">*</span></label>
+          <input type="date" id="o-date" />
+        </div>
+        <div class="form-group row-item">
+          <label>Trạng thái đơn</label>
+          <select id="o-status">
+            <option value="pending">Chờ xử lý (Mới)</option>
+            <option value="processing">Đang làm bánh</option>
+            <option value="completed">Đã giao / Hoàn thành</option>
+            <option value="cancelled">Đã hủy</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-label-row">
+        <label class="section-title">Danh sách bánh đặt:</label>
+      </div>
+
+      <div class="ingredient-picker-row">
+        <div class="picker-col-name">
+          <label class="picker-label">Tên bánh</label>
+          <div class="autocomplete-wrapper">
+            <input
+              type="text"
+              id="o-menu-search"
+              placeholder="Nhập tên bánh để tìm..."
+              onfocus="window.onMenuSearchInput()"
+              oninput="window.onMenuSearchInput()"
+              autocomplete="off"
+            />
+            <div id="menu-dropdown" class="autocomplete-dropdown"></div>
+          </div>
+        </div>
+        <div class="picker-col-filling">
+          <label class="picker-label">Nhân bánh</label>
+          <select id="o-filling-picker" class="item-filling-select">
+            <option value="0">Không nhân - 0đ</option>
+          </select>
+        </div>
+        <div class="picker-col-qty">
+          <label class="picker-label">Số lượng</label>
+          <input
+            type="number"
+            id="o-item-qty"
+            placeholder="SL"
+            min="1"
+            value="1"
+            class="item-qty-input"
+            style="width: 100%"
+          />
+        </div>
+        <div class="picker-col-btn">
+          <button
+            type="button"
+            class="btn-primary btn-add-item"
+            onclick="window.addOrderItem()"
+          >
+            + Thêm món
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th class="modal-col-name">Tên món</th>
+              <th class="modal-col-filling">Nhân bánh</th>
+              <th class="modal-col-price text-right">Đơn giá</th>
+              <th class="modal-col-qty text-center">Số lượng</th>
+              <th class="modal-col-subtotal text-right">Thành tiền</th>
+              <th class="modal-col-del text-center">Xóa</th>
+            </tr>
+          </thead>
+          <tbody id="order-items-body"></tbody>
+        </table>
+      </div>
+
+      <div class="form-group mt-10">
+        <label>Ghi chú đơn hàng (Yêu cầu viết chữ, nến tuổi...)</label>
+        <textarea id="o-note" rows="2" placeholder="Ghi chú thêm..."></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <div class="total-summary-box">
+        Tổng thanh toán: <span id="o-total-amount-display">0 đ</span>
+      </div>
+      <div class="modal-action-buttons">
+        <button
+          type="button"
+          class="btn-secondary"
+          onclick="window.closeOrderModal()"
+        >
+          Hủy bỏ
+        </button>
+        <button
+          type="button"
+          id="btn-save-order"
+          class="btn-primary"
+          onclick="window.saveOrder()"
+        >
+          Lưu đơn hàng
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

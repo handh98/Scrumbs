@@ -1,0 +1,40 @@
+/* Style của cái hộp Tooltip */
+.choc-tooltip {
+  position: fixed;
+  z-index: 99999;
+  display: none;
+  background: #ffffff;
+  color: #5d4037;
+  border: 3px solid #ffb6c1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 4px 15px rgba(255, 182, 193, 0.4);
+  pointer-events: none; /* Tránh cản trở chuột */
+  max-width: 250px;
+  white-space: normal;
+
+  /* Quan trọng: Dịch chuyển sang trái 50% để tọa độ chuột luôn nằm CHÍNH GIỮA tooltip */
+  transform: translateX(-50%);
+}
+
+.choc-tooltip.show {
+  display: block;
+}
+
+/* Tạo mũi tên nhỏ ở chính giữa đáy hộp */
+.choc-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%; /* Đẩy sát xuống đáy ngoài cùng */
+  left: 50%;
+  transform: translateX(-50%); /* Căn giữa mũi tên */
+  border-width: 6px;
+  border-style: solid;
+  border-color: #ffb6c1 transparent transparent transparent;
+}
+
+/* Sửa con trỏ chuột thành dạng hình bàn tay khi rê vào ô Ghi chú */
+.note-column.has-tooltip {
+  cursor: pointer !important;
+}

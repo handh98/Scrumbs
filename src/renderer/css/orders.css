@@ -1,0 +1,214 @@
+/* Chiều rộng các cột bảng ngoài */
+.orders-table .col-id {
+  width: 8%;
+}
+.orders-table .col-customer {
+  width: 22%;
+}
+.orders-table .col-date,
+.orders-table .col-status,
+.orders-table .col-total,
+.orders-table .col-note,
+.orders-table .col-action {
+  width: 14%;
+}
+
+.order-total-cell {
+  color: var(--deep-pink);
+  font-weight: bold;
+}
+
+/* Dropdown Autocomplete tìm Khách & Món */
+.autocomplete-wrapper {
+  position: relative;
+}
+.autocomplete-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: var(--white);
+  border: 1px solid var(--border-btn-sub);
+  border-radius: var(--radius-small);
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-top: 4px;
+}
+.autocomplete-dropdown.show {
+  display: block;
+}
+.autocomplete-dropdown .dropdown-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--text-chocolate);
+  border-bottom: 1px solid var(--border-row);
+  transition: background-color var(--transition-fast);
+}
+.autocomplete-dropdown .dropdown-item:last-child {
+  border-bottom: none;
+}
+.autocomplete-dropdown .dropdown-item:hover {
+  background-color: var(--pastel-pink-hover);
+}
+.autocomplete-dropdown .no-match {
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  cursor: default;
+}
+
+/* BIỂU MẪU ĐƠN HÀNG (MODAL) */
+#order-modal .form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+#order-modal .row-item {
+  flex: 1;
+}
+#order-modal .row-item-full {
+  width: 100%;
+}
+.mt-10 {
+  margin-top: 10px;
+}
+
+#o-status {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--border-soft);
+  outline: none;
+  background-color: var(--white);
+  color: var(--text-chocolate);
+  font-family: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+#o-status:focus {
+  border-color: var(--pastel-pink-bold);
+}
+
+.section-label-row {
+  margin-bottom: 10px;
+}
+.section-title {
+  font-weight: bold;
+  color: var(--text-chocolate);
+}
+
+.ingredient-picker-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 15px;
+  align-items: flex-end;
+  background: #fdfdfd;
+  padding: 10px;
+  border-radius: var(--radius-small);
+  border: 1px solid #f1f1f1;
+}
+
+.picker-col-name {
+  flex: 3;
+}
+.picker-col-filling {
+  flex: 2;
+}
+.picker-col-qty {
+  width: 85px;
+}
+.picker-col-btn {
+  width: 120px;
+}
+
+.picker-label {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: var(--text-chocolate);
+  margin-bottom: 5px;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.flex-05 {
+  flex: 0.5;
+}
+.btn-add-item {
+  padding: 8px 15px;
+  white-space: nowrap;
+}
+
+/* Cột bảng chọn món */
+.modal-col-name {
+  width: 22%;
+}
+.modal-col-filling {
+  width: 28%;
+}
+.modal-col-price {
+  width: 15%;
+}
+.modal-col-subtotal {
+  width: 17%;
+}
+.modal-col-qty {
+  width: 13%;
+}
+.modal-col-del {
+  width: 5%;
+}
+
+.item-filling-select {
+  width: 100%;
+  padding: 5px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-chocolate);
+  background-color: var(--white);
+  box-sizing: border-box;
+}
+
+.item-qty-input {
+  width: 60px;
+  text-align: center;
+  padding: 4px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  outline: none;
+}
+.item-qty-input:focus {
+  border-color: var(--pastel-pink-bold);
+}
+.item-subtotal-text {
+  font-weight: bold;
+}
+
+#order-modal .modal-card {
+  max-width: 800px;
+  width: 90%;
+}
+#order-modal .modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--white);
+  border-top: 1px solid #f3ede2;
+  padding: 16px 24px;
+}
+
+.total-summary-box {
+  font-size: 16px;
+  color: var(--deep-pink);
+  font-weight: bold;
+}
+.modal-action-buttons {
+  display: flex;
+  gap: 10px;
+}

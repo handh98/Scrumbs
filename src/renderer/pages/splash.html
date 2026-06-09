@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      body {
+        margin: 0;
+        background: #fdf3f3; /* Màu hồng nhạt */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-family: "Quicksand", sans-serif;
+        overflow: hidden;
+      }
+      .container {
+        text-align: center;
+      }
+
+      /* Hiệu ứng nhảy múa cho cupcake */
+      .cupcake {
+        font-size: 60px;
+        animation: bounce 1.5s infinite ease-in-out;
+      }
+
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-20px);
+        }
+      }
+
+      .text {
+        color: #5d4037;
+        font-weight: bold;
+        margin-top: 15px;
+        letter-spacing: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="cupcake">🧁</div>
+      <div class="text">Đang nướng bánh...</div>
+    </div>
+  </body>
+</html>

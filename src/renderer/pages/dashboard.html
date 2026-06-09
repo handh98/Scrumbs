@@ -1,0 +1,117 @@
+<div class="dashboard-wrapper">
+  <div class="kpi-container">
+    <div class="kpi-card">
+      <div class="kpi-icon">
+        <img src="src/renderer/assets/revenue.svg" alt="Revenue Icon" />
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-title">Doanh Thu Tháng Này</span>
+        <h3 class="kpi-value" id="kpi-revenue">0 đ</h3>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon">
+        <img src="src/renderer/assets/delivery.svg" alt="Delivery Icon" />
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-title">Đơn Giao Hôm Nay</span>
+        <h3 class="kpi-value" id="kpi-today">0 đơn</h3>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon">
+        <img src="src/renderer/assets/chef.svg" alt="Processing Icon" />
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-title">Đơn Đang Xếp Hàng Làm</span>
+        <h3 class="kpi-value" id="kpi-processing">0 đơn</h3>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-main-grid">
+    <div class="dashboard-panel panel-left">
+      <div class="panel-header">
+        <h3 class="panel-title">
+          <img
+            src="src/renderer/assets/calendar.svg"
+            alt="Calendar Icon"
+            class="icon"
+          />
+          Lịch Giao Bánh Hôm Nay & Ngày Mai
+        </h3>
+        <span class="panel-subtitle"
+          >Xử lý nhanh trạng thái đơn không cần vào modal</span
+        >
+      </div>
+      <div class="panel-body">
+        <div class="table-responsive">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th width="10%">Mã đơn</th>
+                <th width="20%">Khách hàng</th>
+                <th width="30%">Chi tiết bánh đặt</th>
+                <th width="20%">Ngày giao</th>
+                <th width="20%">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="urgent-orders-body">
+              <tr>
+                <td colspan="5" class="text-center no-data">
+                  Đang tải dữ liệu...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-panel panel-right">
+      <div class="panel-header">
+        <h3 class="panel-title">🔍 Nguyên Liệu Thiếu cho Đơn Hàng</h3>
+      </div>
+      <div class="panel-body">
+        <div class="low-stock-list" id="low-stock-body">
+          <div class="text-center no-data">Đang kiểm tra kho...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-charts-grid">
+    <div class="dashboard-panel">
+      <div class="panel-header">
+        <h3 class="panel-title">
+          <img
+            src="src/renderer/assets/chart.svg"
+            alt="Chart Icon"
+            class="icon"
+          />
+          Tình Hình Doanh Thu 7 Ngày Qua
+        </h3>
+      </div>
+      <div
+        class="panel-body chart-flex-container"
+        id="chart-revenue-container"
+      ></div>
+    </div>
+
+    <div class="dashboard-panel">
+      <div class="panel-header">
+        <h3 class="panel-title">
+          <img
+            src="src/renderer/assets/favourite.svg"
+            alt="Favorite Icon"
+            class="icon"
+          />
+          Top 5 Loại Bánh Bán Chạy Nhất
+        </h3>
+      </div>
+      <div class="panel-body" id="chart-top-cakes-container"></div>
+    </div>
+  </div>
+</div>

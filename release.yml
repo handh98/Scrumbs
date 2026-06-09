@@ -1,0 +1,36 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main # Chạy khi bạn push vào nhánh main
+    tags:
+      - "v*" # Hoặc chạy khi bạn push một tag mới (ví dụ v1.0.7)
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+
+      # Quan trọng: Rebuild sqlite3 để tương thích với môi trường chạy
+      - name: Rebuild SQLite3
+        run: npm run rebuild
+
+      - name: Build and Publish Electron App
+        env:
+          # GITHUB_TOKEN là biến môi trường tự động có sẵn trong GitHub Actions
+          # dùng để cấp quyền upload file vào phần Release
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build -- --publish always

@@ -1,0 +1,93 @@
+<div class="statistics-page">
+  <div class="page-header">
+    <h2 class="title-primary">
+      <img src="src/renderer/assets/revenue.svg" alt="Stats Icon" /> Thống Kê &
+      Báo Cáo
+    </h2>
+    <div class="header-actions">
+      <div class="date-range-picker">
+        <input
+          type="date"
+          id="stats-start-date"
+          onchange="window.loadStatistics()"
+        />
+        <span>đến</span>
+        <input
+          type="date"
+          id="stats-end-date"
+          onchange="window.loadStatistics()"
+        />
+      </div>
+      <button class="btn-primary" onclick="window.loadStatistics()">
+        🔄 Làm mới
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-kpi-grid">
+    <div class="stat-card revenue">
+      <div class="stat-label">Tổng Doanh Thu</div>
+      <div class="stat-value" id="stat-total-revenue">0 đ</div>
+      <div class="stat-footer">Tiền bán bánh thu về</div>
+    </div>
+    <div class="stat-card cost">
+      <div class="stat-label">Ước Tính Giá Vốn</div>
+      <div class="stat-value" id="stat-total-cost">0 đ</div>
+      <div class="stat-footer">Nguyên liệu + Điện + Công</div>
+    </div>
+    <div class="stat-card profit">
+      <div class="stat-label">Lợi Nhuận Gộp</div>
+      <div class="stat-value" id="stat-total-profit">0 đ</div>
+      <div class="stat-footer" id="stat-profit-percent">0% trên doanh thu</div>
+    </div>
+  </div>
+
+  <div class="stats-chart-section table-container">
+    <div class="panel-header">
+      <h3 class="panel-title">Biểu đồ biến động Doanh thu & Lợi nhuận</h3>
+    </div>
+    <div id="stats-line-chart-container" class="line-chart-wrapper">
+      <!-- SVG Chart sẽ được render tại đây -->
+    </div>
+    <div class="chart-legend">
+      <span class="legend-item revenue">Doanh thu</span>
+      <span class="legend-item profit">Lợi nhuận</span>
+    </div>
+  </div>
+
+  <div class="stats-main-grid">
+    <div class="table-container flex-2">
+      <div class="panel-header">
+        <h3 class="panel-title">Chi tiết doanh thu theo đơn</h3>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Mã ĐH</th>
+            <th>Ngày giao</th>
+            <th>Khách hàng</th>
+            <th class="text-right">Doanh thu</th>
+            <th class="text-right">Vốn (ước tính)</th>
+            <th class="text-right">Lợi nhuận</th>
+          </tr>
+        </thead>
+        <tbody id="stats-order-list"></tbody>
+      </table>
+    </div>
+
+    <div class="table-container flex-1">
+      <div class="panel-header">
+        <h3 class="panel-title">Sản phẩm bán chạy</h3>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Tên bánh</th>
+            <th class="text-center">Số lượng</th>
+          </tr>
+        </thead>
+        <tbody id="stats-top-products"></tbody>
+      </table>
+    </div>
+  </div>
+</div>

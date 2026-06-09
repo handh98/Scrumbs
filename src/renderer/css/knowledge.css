@@ -1,0 +1,215 @@
+/* Container chung */
+.knowledge-page-container {
+  padding: 10px 5px;
+}
+
+/* Utilities (thay thế cho inline styles) */
+.me-8 {
+  margin-right: 8px;
+}
+.mb-5 {
+  margin-bottom: 5px;
+  display: inline-block;
+}
+.mt-15 {
+  margin-top: 15px;
+}
+.flex-1 {
+  flex: 1;
+}
+.flex-2 {
+  flex: 2;
+}
+.form-row {
+  display: flex;
+  gap: 15px;
+}
+.action-group {
+  display: flex;
+  gap: 8px;
+}
+.footer-between {
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Thanh bộ lọc danh mục */
+.category-filter-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-tag {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.filter-tag.active {
+  box-shadow: 0 0 0 2px var(--text-chocolate, #5d4037);
+  font-weight: bold;
+}
+
+/* Hệ thống lưới Blog Grid */
+.knowledge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.knowledge-card {
+  background: #fffdfb;
+  border-radius: 14px;
+  border: 1px solid #f3ece6;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 10px rgba(93, 64, 55, 0.03);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.knowledge-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 15px rgba(93, 64, 55, 0.08);
+}
+
+.knowledge-card h3 {
+  margin: 10px 0 6px 0;
+  color: var(--text-chocolate, #4e342e);
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.knowledge-card p {
+  margin: 0;
+  color: var(--text-note, #7d665a);
+  font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-footer {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px dashed #f3ece6;
+  padding-top: 10px;
+}
+
+.badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 50px;
+  color: var(--text-muted, #bcaaa4);
+  font-style: italic;
+}
+
+/* Đường dẫn liên kết nội bộ kiểu Wikipedia */
+.wiki-link {
+  color: #bc5a1a;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dashed #bc5a1a;
+  padding: 0 2px;
+  transition: all 0.2s;
+}
+
+.wiki-link:hover {
+  background-color: #ffe9db;
+  border-bottom-style: solid;
+  border-radius: 4px;
+}
+
+/* Modal Form Styles */
+.label-bold {
+  font-weight: bold;
+  color: var(--text-chocolate, #5d4037);
+}
+
+.help-text {
+  font-size: 12px;
+  color: var(--text-note, #8d6e63);
+  margin-bottom: 5px;
+}
+
+.tall-textarea {
+  height: 250px;
+  resize: vertical;
+}
+
+.category-form-section {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  background: #fdfaf7;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #f3ece6;
+}
+
+.color-picker-input {
+  height: 34px;
+  width: 40px;
+  padding: 0;
+  border: 1px solid #ffe5e9;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.cat-table-wrap {
+  margin-top: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Modal Đọc chi tiết bài viết */
+.detail-card {
+  max-width: 650px !important;
+  width: 90%;
+}
+
+.detail-title {
+  color: var(--text-chocolate, #4e342e);
+  margin: 0;
+}
+
+.read-body {
+  background-color: #fcfbfa;
+  border-radius: 8px;
+  padding: 20px !important;
+  border: 1px solid #f5ebe2;
+}
+
+.article-content {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #3e2723;
+  white-space: pre-line;
+}
+
+.date-text {
+  font-size: 12px;
+  color: #999;
+}
