@@ -83,8 +83,10 @@
       }
 
       if (window.recipeKeyword) {
-        whereClause += " AND fts MATCH ?";
-        params.push(window.recipeKeyword + "*");
+        // Escape dấu ngoặc kép và bọc từ khóa để tránh lỗi cú pháp FTS5 khi có dấu cách
+        const safeKeyword = window.recipeKeyword.replace(/"/g, '""');
+        whereClause += " AND recipes_fts MATCH ?";
+        params.push(`"${safeKeyword}"*`);
       }
 
       const joinClause = window.recipeKeyword

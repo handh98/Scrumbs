@@ -54,7 +54,12 @@
 
     dropdown.innerHTML = filtered
       .map((o) => {
-        const price = o.total_cost ?? o.unit_price;
+        let price;
+        if (type === "recipe") {
+          price = o.unit_cost;
+        } else {
+          price = o.unit_price;
+        }
         const unit = o.unit || "";
         const displayPrice = `${window.formatNumber(Math.round(price))}đ ${unit ? "/" + unit : ""}`;
 
@@ -151,14 +156,14 @@
     div.className = "recipe-row";
     div.innerHTML = `
         <div class="flex-2 picker-container">
-            <input type="text" class="picker-input" placeholder="🔍 Nhập công thức..." value="${found.name || ""}" 
+            <input type="text" class="picker-input" placeholder="🔍 Nhập công thức..." value="${found.name || ""}"
                    onfocus="window.showPicker(this, 'recipe')" oninput="window.filterPicker(this, 'recipe')" onblur="window.hidePickerDelay(this)" autocomplete="off" />
             <div class="picker-dropdown"></div>
             <input type="hidden" class="picker-id-hidden" value="${recipeId}">
-            <input type="hidden" class="picker-price-hidden" value="${found.total_cost || 0}">
+            <input type="hidden" class="picker-price-hidden" value="${found.unit_cost || 0}">
         </div>
         <div class="flex-1"><input class="recipe-ratio" type="number" step="0.1" min="0.1" value="${ratio}" oninput="window.calculateTotal()" placeholder="Tỉ lệ"></div>
-        <div class="flex-1"><input type="text" class="recipe-cost-display" readonly value="${found.total_cost ? window.formatNumber(Math.round(found.total_cost)) + "đ" : ""}"></div>
+        <div class="flex-1"><input type="text" class="recipe-cost-display" readonly value="${window.formatNumber(Math.round(found.unit_cost || 0)) + "đ"}"></div>
         <div class="col-action-wrap"><button type="button" class="btn-delete-row" onclick="this.closest('.recipe-row').remove(); window.calculateTotal();">❌</button></div>`;
     const container = $("recipe-container");
     if (container) container.appendChild(div);
@@ -582,7 +587,12 @@
 
   window.openMenuModal = async () => {
     window.recipeOptions = await API.db_query(
-      `SELECT r.id, r.name, r.recipe_type, COALESCE(SUM(ri.qty * i.unit_price), 0) AS total_cost FROM recipes r LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id LEFT JOIN ingredients i ON ri.ingredient_id = i.id WHERE r.is_active = 1 AND r.recipe_type != 'filling' GROUP BY r.id`,
+      `SELECT 
+        r.id, 
+        r.name, 
+        r.recipe_type, 
+        COALESCE(r.total_cost / MAX(1, CAST(r.output AS REAL)), 0) AS unit_cost 
+      FROM recipes r WHERE r.is_active = 1 AND r.recipe_type != 'filling'`,
     );
     window.fillingOptions = await API.db_query(
       `SELECT id, name FROM recipes WHERE recipe_type = 'filling' AND is_active = 1`,
@@ -763,24 +773,26 @@
 
   // Khởi tạo định dạng cho các ô nhập liệu số khi gõ
   function initMenuInputFormatters() {
-    ["m-elec", "m-depr", "m-labor", "m-margin", "m-final-price"].forEach(
-      (id) => {
-        const el = $(id);
-        if (!el) return;
-        el.addEventListener("input", () => {
-          window.formatInputOnType(el);
-          window.calculateTotal(); // Tính lại tổng ngay khi nhập
-        });
-      },
-    );
+    ["m-elec", "m-depr", "m-labor", "m-final-price"].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+
+      // Tránh gắn nhiều listener nếu modal mở đi mở lại
+      if (el.dataset.listenerAttached) return;
+
+      el.addEventListener("input", () => {
+        window.formatInputOnType(el);
+        window.calculateTotal(); // Tính lại tổng ngay khi nhập
+      });
+      el.dataset.listenerAttached = "true";
+    });
   }
 
   // Theo dõi DOM để gán sự kiện ngay khi Modal được nạp vào
   const observer = new MutationObserver(() => {
-    if ($("m-final-price")) {
-      initMenuInputFormatters();
-      observer.disconnect();
-    }
+    // Luôn kiểm tra sự tồn tại của các input để init formatters
+    // Không dùng disconnect() để đảm bảo khi mở lại modal vẫn hoạt động
+    if ($("m-final-price")) initMenuInputFormatters();
   });
   observer.observe(document.body, { childList: true, subtree: true });
 

@@ -698,13 +698,13 @@ async function upgradeDatabase() {
 
       await dbManager.run(`
         CREATE TRIGGER IF NOT EXISTS recipes_ad AFTER DELETE ON recipes BEGIN
-          INSERT INTO recipes_fts(recipes_fts, rowid, name, recipe_type, note) VALUES('delete', old.id, old.name, old.recipe_type, old.note);
+          DELETE FROM recipes_fts WHERE rowid = OLD.id;
         END;
       `);
 
       await dbManager.run(`
         CREATE TRIGGER IF NOT EXISTS recipes_au AFTER UPDATE ON recipes BEGIN
-          INSERT INTO recipes_fts(recipes_fts, rowid, name, recipe_type, note) VALUES('delete', old.id, old.name, old.recipe_type, old.note);
+          DELETE FROM recipes_fts WHERE rowid = OLD.id;
           INSERT INTO recipes_fts(rowid, name, recipe_type, note) VALUES (new.id, new.name, new.recipe_type, new.note);
         END;
       `);
@@ -774,8 +774,7 @@ async function upgradeDatabase() {
 
       // 4. Tạo các Trigger mới trên bảng recipe_ingredients để cập nhật FTS khi thành phần thay đổi
       await dbManager.run(`CREATE TRIGGER IF NOT EXISTS ri_ai AFTER INSERT ON recipe_ingredients BEGIN
-        INSERT INTO recipes_fts(recipes_fts, rowid, name, recipe_type, note, ingredients) 
-        SELECT 'delete', rowid, name, recipe_type, note, ingredients FROM recipes_fts WHERE rowid = new.recipe_id;
+        DELETE FROM recipes_fts WHERE rowid = NEW.recipe_id;
         INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
         SELECT id, name, recipe_type, note,
                (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
@@ -783,8 +782,7 @@ async function upgradeDatabase() {
       END;`);
 
       await dbManager.run(`CREATE TRIGGER IF NOT EXISTS ri_ad AFTER DELETE ON recipe_ingredients BEGIN
-        INSERT INTO recipes_fts(recipes_fts, rowid, name, recipe_type, note, ingredients) 
-        SELECT 'delete', rowid, name, recipe_type, note, ingredients FROM recipes_fts WHERE rowid = old.recipe_id;
+        DELETE FROM recipes_fts WHERE rowid = OLD.recipe_id;
         INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
         SELECT id, name, recipe_type, note,
                (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
@@ -792,8 +790,8 @@ async function upgradeDatabase() {
       END;`);
 
       await dbManager.run(`CREATE TRIGGER IF NOT EXISTS ri_au AFTER UPDATE ON recipe_ingredients BEGIN
-        INSERT INTO recipes_fts(recipes_fts, rowid, name, recipe_type, note, ingredients) 
-        SELECT 'delete', rowid, name, recipe_type, note, ingredients FROM recipes_fts WHERE rowid = old.recipe_id;
+        DELETE FROM recipes_fts WHERE rowid = OLD.recipe_id;
+        DELETE FROM recipes_fts WHERE rowid = NEW.recipe_id;
         INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
         SELECT id, name, recipe_type, note,
                (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
@@ -803,9 +801,8 @@ async function upgradeDatabase() {
       // 5. Tạo Trigger trên bảng ingredients để cập nhật FTS khi đổi tên nguyên liệu
       await dbManager.run(`
         CREATE TRIGGER IF NOT EXISTS ing_name_au AFTER UPDATE OF name ON ingredients BEGIN
-          INSERT INTO recipes_fts(recipes_fts, rowid, name, recipe_type, note, ingredients)
-          SELECT 'delete', rowid, name, recipe_type, note, ingredients FROM recipes_fts 
-          WHERE rowid IN (SELECT recipe_id FROM recipe_ingredients WHERE ingredient_id = new.id);
+          DELETE FROM recipes_fts 
+          WHERE rowid IN (SELECT recipe_id FROM recipe_ingredients WHERE ingredient_id = NEW.id);
 
           INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
           SELECT r.id, r.name, r.recipe_type, r.note,
@@ -887,9 +884,15 @@ async function upgradeDatabase() {
       await dbManager.run(`CREATE TRIGGER ri_au AFTER UPDATE ON recipe_ingredients BEGIN
         DELETE FROM recipes_fts WHERE rowid = OLD.recipe_id;
         DELETE FROM recipes_fts WHERE rowid = NEW.recipe_id;
+        
         INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
         SELECT id, name, recipe_type, note, (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
-        FROM recipes WHERE id = NEW.recipe_id OR id = OLD.recipe_id;
+        FROM recipes WHERE id = NEW.recipe_id;
+
+        INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
+        SELECT id, name, recipe_type, note, (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
+        FROM recipes WHERE id = OLD.recipe_id AND OLD.recipe_id != NEW.recipe_id;
+
         UPDATE recipes SET total_cost = (
           SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = recipes.id
         ) WHERE id = NEW.recipe_id;
