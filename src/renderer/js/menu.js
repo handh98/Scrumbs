@@ -502,7 +502,9 @@
         SELECT m.*,
             COALESCE((SELECT SUM(mr.ratio * (SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) / CAST(r.output AS REAL) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = mr.recipe_id)) FROM menu_recipes mr WHERE mr.menu_item_id = m.id), 0) AS total_recipe_cost,
             COALESCE((SELECT SUM(mp.qty * i.unit_price) FROM menu_packaging mp JOIN ingredients i ON mp.ingredient_id = i.id WHERE mp.menu_item_id = m.id), 0) AS total_pkg_cost,
-            COALESCE((SELECT SUM(mig.qty * i.unit_price) FROM menu_ingredients mig JOIN ingredients i ON mig.ingredient_id = i.id WHERE mig.menu_item_id = m.id), 0) AS total_raw_cost
+            COALESCE((SELECT SUM(mig.qty * i.unit_price) FROM menu_ingredients mig JOIN ingredients i ON mig.ingredient_id = i.id WHERE mig.menu_item_id = m.id), 0) AS total_raw_cost,
+            (SELECT COUNT(*) FROM menu_fillings WHERE menu_item_id = m.id) AS filling_count,
+            (SELECT GROUP_CONCAT(r.name || ':' || CAST(CASE WHEN mf.price > 0 THEN mf.price ELSE CEIL(r.total_cost / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 END AS INTEGER), '|') FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id WHERE mf.menu_item_id = m.id) AS filling_list
         FROM menu_items m WHERE m.is_active = 1 ORDER BY m.id DESC
       `;
 
@@ -556,14 +558,27 @@
           const sellingPrice = item.selling_price || 0; // Luôn lấy selling_price từ DB, nếu 0 thì hiển thị 0
           const margin = item.profit_margin || 0; // Lấy lợi nhuận trực tiếp từ DB
 
+          const fillingBadge =
+            item.filling_count > 0
+              ? `<div style="font-size: 11px; color: #bcaaa4; margin-top: 2px;">(${item.filling_count} loại nhân)</div>`
+              : "";
+
+          let priceDisplay = `${window.formatNumber(Math.round(sellingPrice))}đ`;
+          if (item.filling_list) {
+            item.filling_list.split("|").forEach((fStr) => {
+              const [fName, fPrice] = fStr.split(":");
+              priceDisplay += `<div style="font-size: 11px; color: #bc5a1a; font-weight: normal; margin-top: 2px;">${fName}: +${window.formatNumber(fPrice)}đ</div>`;
+            });
+          }
+
           return `
-          <tr>
-            <td class="text-center">${globalIndex}</td>
-            <td class="text-center text-500">${item.name}</td>
-            <td class="text-center text-highlight">${window.formatNumber(Math.round(sellingPrice))}đ</td>
-            <td class="text-center">${margin.toFixed(2)}%</td>
-            <td class="text-center note-column has-tooltip" data-note="${note}">${note}</td>
-            <td class="text-center action-column">
+          <tr class="menu-item-row">
+            <td class="text-center menu-col-index">${globalIndex}</td>
+            <td class="text-center text-500 menu-col-name">${item.name}${fillingBadge}</td>
+            <td class="text-center text-highlight menu-col-price">${priceDisplay}</td>
+            <td class="text-center menu-col-margin">${margin.toFixed(2)}%</td>
+            <td class="text-center note-column has-tooltip menu-col-note" data-note="${note}">${note}</td>
+            <td class="text-center action-column menu-col-action">
               <button class="btn-secondary btn-edit" onclick="window.editMenu(${item.id})" title="Chỉnh sửa"><img src="src/renderer/assets/edit.svg" class="icon" /></button>
               <button class="btn-secondary btn-delete" onclick="window.deleteMenu(${item.id}, '${item.name.replace(/'/g, "\\'")}')" title="Xóa"><img src="src/renderer/assets/trash.svg" class="icon" /></button>
             </td>
@@ -595,7 +610,11 @@
       FROM recipes r WHERE r.is_active = 1 AND r.recipe_type != 'filling'`,
     );
     window.fillingOptions = await API.db_query(
-      `SELECT id, name FROM recipes WHERE recipe_type = 'filling' AND is_active = 1`,
+      `SELECT 
+        id, 
+        name, 
+        COALESCE(CEIL(total_cost / MAX(1.0, CAST(output AS REAL)) / 100.0) * 100, 0) AS unit_cost 
+      FROM recipes WHERE recipe_type = 'filling' AND is_active = 1`,
     );
 
     if (!window.recipeOptions.length)
@@ -829,7 +848,7 @@
       select.innerHTML = availableOptions
         .map(
           (f) =>
-            `<option value="${f.id}" ${f.id === currentVal ? "selected" : ""}>${f.name}</option>`,
+            `<option value="${f.id}" ${f.id === currentVal ? "selected" : ""}>${f.name} - ${window.formatNumber(f.unit_cost)}đ</option>`,
         )
         .join("");
 

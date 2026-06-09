@@ -6,19 +6,19 @@
 
 /* Bố cục cột bảng danh sách Menu */
 .menu-main-table th.col-stt {
-  width: 5%;
+  width: 4%;
 }
 .menu-main-table th.col-name {
-  width: 25%;
+  width: 26%;
 }
 .menu-main-table th.col-price {
-  width: 12%;
+  width: 20%;
 }
 .menu-main-table th.col-margin {
   width: 10%;
 }
 .menu-main-table th.col-note {
-  width: 23%;
+  width: 25%;
 }
 .menu-main-table th.col-action {
   width: 15%;

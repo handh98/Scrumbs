@@ -22,13 +22,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24 # Nâng cấp lên Node 24 để tương thích với Electron 41
+          node-version: 20 # Sử dụng bản LTS ổn định để tránh lỗi build
           cache: "npm"
 
       - name: Install dependencies
         run: |
-          npm cache clean --force
-          npm install
+          npm ci
+          node node_modules/electron/install.js
 
       # Quan trọng: Rebuild sqlite3 để tương thích với môi trường chạy
       - name: Rebuild SQLite3

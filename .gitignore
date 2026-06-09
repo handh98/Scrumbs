@@ -5,4 +5,11 @@ build/
 *.exe
 # Database files
 bakery.db
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+
+# Database backups
+*.db.bak
 backups/
