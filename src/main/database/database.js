@@ -908,6 +908,20 @@ async function upgradeDatabase() {
       console.log("✅ Migration 11 thành công.");
     }
 
+    // Migration 12: Thêm cột qty vào menu_fillings để quản lý tỉ lệ nhân cho món combo/hộp
+    if (currentVersion < 12) {
+      const columns = await dbManager.all("PRAGMA table_info(menu_fillings)");
+      if (!columns.some((col) => col.name === "qty")) {
+        await dbManager.run(
+          "ALTER TABLE menu_fillings ADD COLUMN qty REAL DEFAULT 1",
+        );
+      }
+      await dbManager.run("DELETE FROM schema_version");
+      await dbManager.run("INSERT INTO schema_version (version) VALUES (12)");
+      currentVersion = 12;
+      needsVacuum = true;
+    }
+
     if (needsVacuum) {
       console.log(
         "🧹 Đang tối ưu hóa dung lượng file cơ sở dữ liệu (VACUUM)...",

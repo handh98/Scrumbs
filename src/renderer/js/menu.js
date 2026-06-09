@@ -209,9 +209,15 @@
     if (container) container.appendChild(div);
   };
 
-  window.addMenuFillingRow = (recipeId = "", isDefault = 0) => {
+  window.addMenuFillingRow = (recipeId = "", isDefault = 0, qty = 1) => {
     const header = document.querySelector(".fillings-header");
     if (header) header.style.display = "flex";
+
+    // Nếu không truyền qty (khi nhấn nút thêm mới), thử lấy tỉ lệ từ công thức vỏ đầu tiên
+    if (qty === null) {
+      const firstRecipeRatio = document.querySelector(".recipe-ratio")?.value;
+      qty = firstRecipeRatio ? parseFloat(firstRecipeRatio) : 1;
+    }
 
     // Tìm danh sách ID đã được chọn để chọn nhân khả dụng tiếp theo cho dòng mới
     const selectedIds = Array.from($$(".filling-row"))
@@ -240,6 +246,9 @@
 
     div.innerHTML = `
         <select class="flex-2 filling-id-select" onchange="window.updateFillingControlsState()"></select>
+        <div class="flex-1">
+          <input type="number" class="filling-qty" value="${qty}" min="0.1" step="0.1" placeholder="Tỉ lệ" title="Số lượng nhân cho món này">
+        </div>
         <div class="flex-1" style="display:flex; justify-content:center;">
           <input type="radio" name="default-filling" class="is-default-radio" ${shouldCheck ? "checked" : ""}>
         </div>
@@ -249,7 +258,8 @@
     if (container) {
       container.appendChild(div);
       const select = div.querySelector(".filling-id-select");
-      select.value = initialId;
+      // Lưu tạm ID vào dataset vì lúc này select chưa có options để nhận value
+      select.dataset.pendingValue = initialId;
       window.updateFillingControlsState(); // Gọi cập nhật để render options chính xác
     }
   };
@@ -327,6 +337,7 @@
 
     const fillingList = Array.from($$(".filling-row")).map((row) => ({
       id: parseInt(row.querySelector(".filling-id-select").value),
+      qty: parseFloat(row.querySelector(".filling-qty").value) || 1,
       is_default: row.querySelector(".is-default-radio").checked ? 1 : 0,
     }));
     // Nếu có nhân mà chưa chọn mặc định, lấy cái đầu tiên
@@ -471,8 +482,8 @@
 
       for (const fill of fillingList)
         await API.db_execute(
-          "INSERT INTO menu_fillings (menu_item_id, recipe_id, is_default) VALUES (?, ?, ?)",
-          [currentTargetId, fill.id, fill.is_default],
+          "INSERT INTO menu_fillings (menu_item_id, recipe_id, is_default, qty) VALUES (?, ?, ?, ?)",
+          [currentTargetId, fill.id, fill.is_default, fill.qty],
         );
 
       window.showToast?.(
@@ -504,7 +515,7 @@
             COALESCE((SELECT SUM(mp.qty * i.unit_price) FROM menu_packaging mp JOIN ingredients i ON mp.ingredient_id = i.id WHERE mp.menu_item_id = m.id), 0) AS total_pkg_cost,
             COALESCE((SELECT SUM(mig.qty * i.unit_price) FROM menu_ingredients mig JOIN ingredients i ON mig.ingredient_id = i.id WHERE mig.menu_item_id = m.id), 0) AS total_raw_cost,
             (SELECT COUNT(*) FROM menu_fillings WHERE menu_item_id = m.id) AS filling_count,
-            (SELECT GROUP_CONCAT(r.name || ':' || CAST(CASE WHEN mf.price > 0 THEN mf.price ELSE CEIL(r.total_cost / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 END AS INTEGER), '|') FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id WHERE mf.menu_item_id = m.id) AS filling_list
+            (SELECT GROUP_CONCAT(r.name || ':' || CAST((CASE WHEN mf.price > 0 THEN mf.price ELSE CEIL(r.total_cost / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 END) * mf.qty AS INTEGER), '|') FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id WHERE mf.menu_item_id = m.id) AS filling_list
         FROM menu_items m WHERE m.is_active = 1 ORDER BY m.id DESC
       `;
 
@@ -731,11 +742,11 @@
       savedPkgs.forEach((p) => window.addPkgRow(p.ingredient_id, p.qty));
 
       const savedFillings = await API.db_query(
-        "SELECT recipe_id, is_default FROM menu_fillings WHERE menu_item_id = ?",
+        "SELECT recipe_id, is_default, qty FROM menu_fillings WHERE menu_item_id = ?",
         [id],
       );
       savedFillings.forEach((f) =>
-        window.addMenuFillingRow(f.recipe_id, f.is_default),
+        window.addMenuFillingRow(f.recipe_id, f.is_default, f.qty),
       );
 
       // Cập nhật trạng thái của nút "Thêm nhân bánh" và header
@@ -830,7 +841,10 @@
 
     // 1. Lấy tất cả ID đang được chọn trên toàn bộ các dòng
     const allSelectedIds = Array.from(currentFillingRows)
-      .map((row) => parseInt(row.querySelector(".filling-id-select")?.value))
+      .map((row) => {
+        const s = row.querySelector(".filling-id-select");
+        return parseInt(s?.value) || parseInt(s?.dataset.pendingValue);
+      })
       .filter((id) => !isNaN(id));
 
     // 2. Cập nhật lại danh sách option cho từng ô select
@@ -838,7 +852,9 @@
       const select = row.querySelector(".filling-id-select");
       if (!select) return;
 
-      const currentVal = parseInt(select.value);
+      // Ưu tiên giá trị thực tế, nếu chưa có thì lấy từ dataset (cho hàng mới load)
+      const currentVal =
+        parseInt(select.value) || parseInt(select.dataset.pendingValue);
       // Danh sách khả dụng cho ô này = (Tất cả nhân - Nhân đã chọn ở các dòng KHÁC)
       const othersSelected = allSelectedIds.filter((id) => id !== currentVal);
       const availableOptions = window.fillingOptions.filter(
@@ -852,8 +868,11 @@
         )
         .join("");
 
-      // Gán lại giá trị để đảm bảo select hiển thị đúng sau khi thay đổi innerHTML
-      if (currentVal) select.value = currentVal;
+      // Gán lại giá trị thực tế và xóa dữ liệu tạm
+      if (!isNaN(currentVal)) {
+        select.value = currentVal;
+        delete select.dataset.pendingValue;
+      }
     });
 
     // 3. Cập nhật trạng thái nút "Thêm nhân" và Header

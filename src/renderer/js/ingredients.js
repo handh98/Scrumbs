@@ -311,6 +311,8 @@
         `Đã xóa ${window.currentIngType === "package" ? "bao bì" : "nguyên liệu"}!`,
         "success",
       );
+      window.invalidateAndReload("fillingOptions", null); // Invalidate filling options cache
+      window.invalidateAndReload("menuSourceData", null); // Invalidate menu list cache
       await loadIngredients();
     } catch (error) {
       console.error("Lỗi thực thi xóa:", error);

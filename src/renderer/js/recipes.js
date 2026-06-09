@@ -406,6 +406,8 @@
         "success",
       );
       window.loadRecipes?.();
+      window.invalidateAndReload("fillingOptions", null); // Invalidate filling options cache
+      window.invalidateAndReload("menuSourceData", null); // Invalidate menu list cache
 
       if (window.currentRecipeId)
         window.openRecipeModal("view", targetRecipeId);
@@ -453,6 +455,8 @@
         id,
       ]);
       window.showToast?.("Đã xóa công thức!", "success");
+      window.invalidateAndReload("fillingOptions", null); // Invalidate filling options cache
+      window.invalidateAndReload("menuSourceData", null); // Invalidate menu list cache
       loadRecipes();
     } catch (error) {
       console.error("Lỗi xóa:", error);

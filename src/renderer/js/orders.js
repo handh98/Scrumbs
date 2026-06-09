@@ -371,9 +371,9 @@
     // Load danh sách nhân cho phép của bánh này
     window.currentItemFillings = await API.db_query(
       `SELECT r.id, r.name, mf.is_default, 
-        CASE WHEN mf.price > 0 THEN mf.price 
-             ELSE (SELECT CEIL(SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id)
-        END AS price
+        (CASE WHEN mf.price > 0 THEN mf.price 
+              ELSE (SELECT CEIL(SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id)
+        END) * mf.qty AS price
        FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id
        WHERE mf.menu_item_id = ?`,
       [id],
@@ -782,9 +782,9 @@
         // Lấy tất cả nhân cho menu_id này để điền vào select box
         const allFillingsForMenuItem = await API.db_query(
           `SELECT r.id, r.name, mf.is_default, 
-            CASE WHEN mf.price > 0 THEN mf.price 
-                 ELSE (SELECT CEIL(SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id)
-            END AS price
+            (CASE WHEN mf.price > 0 THEN mf.price 
+                  ELSE (SELECT CEIL(SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id)
+            END) * mf.qty AS price
            FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id
            WHERE mf.menu_item_id = ?`,
           [item.menu_id],
