@@ -4,7 +4,7 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "chcp 65001 > nul && electron .",
-    "rebuild": "electron-rebuild -f -w sqlite3",
+    "rebuild": "electron-rebuild --module-dir=node_modules -f -w sqlite3",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "build": "electron-builder"
