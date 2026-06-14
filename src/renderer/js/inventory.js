@@ -12,6 +12,12 @@
       const tbody = $("inventory-list-body");
       const paginationContainer = $("inventory-pagination");
 
+      // Đồng bộ keyword từ UI
+      const searchInput = $("inventory-search");
+      if (searchInput) {
+        window.inventoryKeyword = searchInput.value.trim();
+      }
+
       const sql = `
         SELECT 
           i.id, i.name, i.unit, 

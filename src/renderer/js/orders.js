@@ -38,6 +38,12 @@
       const paginationContainer = $("order-pagination");
       if (!tbody) return;
 
+      // Đồng bộ keyword từ UI
+      const searchInput = $("order-search");
+      if (searchInput) {
+        window.orderKeyword = searchInput.value.trim();
+      }
+
       const statusFilter = $("filter-status")?.value || "all";
       const dateSort = $("sort-delivery-date")?.value || "desc";
       const kw = window.orderKeyword ? `%${window.orderKeyword}%` : null;
@@ -54,8 +60,14 @@
         whereClause +=
           (whereClause ? " AND" : " WHERE") +
           " orders.customer_id IN (SELECT rowid FROM customers_fts WHERE customers_fts MATCH ?)";
-        // FTS dùng cú pháp đặc biệt, kw không cần dấu %
-        params.push(window.orderKeyword + "*");
+
+        // 🌟 CẢI TIẾN: Khử dấu từ khóa trước khi MATCH
+        const cleanKeyword = window.removeAccents(window.orderKeyword);
+        const tokens = cleanKeyword.split(/\s+/).filter(Boolean);
+        const searchQuery = tokens
+          .map((t) => `${t.replace(/"/g, '""')}*`)
+          .join(" ");
+        params.push(searchQuery);
       }
 
       // 1. Lấy tổng số lượng bản ghi sau khi lọc để tính toán số trang

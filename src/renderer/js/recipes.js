@@ -80,57 +80,42 @@
       }
 
       const activeTab = window.activeRecipeTab || "all";
-      let whereClause = " WHERE r.is_active = 1";
-      let params = [];
 
-      if (activeTab !== "all") {
-        whereClause += " AND r.recipe_type = ?";
-        params.push(activeTab);
-      }
-
-      if (window.recipeKeyword) {
-        // Escape dấu ngoặc kép và bọc từ khóa để tránh lỗi cú pháp FTS5 khi có dấu cách
-        const safeKeyword = window.recipeKeyword.trim().replace(/"/g, '""');
-        whereClause += " AND fts MATCH ?"; // Sử dụng alias fts để đồng bộ với JOIN
-        params.push(`${safeKeyword}*`);
-      }
-
-      const joinClause = window.recipeKeyword
-        ? " INNER JOIN recipes_fts fts ON r.id = fts.rowid "
-        : "";
-
-      // 1. Lấy tổng số lượng bản ghi để phân trang
-      const countRes = await API.db_query(
-        `SELECT COUNT(*) as total FROM recipes r ${joinClause} ${whereClause}`,
-        params,
-      );
-      const totalItems = countRes[0].total;
-      const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-
-      if (window.currentPageRecipes > totalPages)
-        window.currentPageRecipes = totalPages;
-
-      // 2. Lấy dữ liệu trang hiện tại
-      const offset = (window.currentPageRecipes - 1) * itemsPerPage;
-      const sql = `
-         SELECT r.* ${window.recipeKeyword ? ", fts.ingredients" : ""}
-         FROM recipes r ${joinClause}
-         ${whereClause}
-         ORDER BY r.id DESC
-         LIMIT ? OFFSET ?
+      // Lấy toàn bộ công thức đang hoạt động theo Tab
+      // Việc lọc không dấu (accent-insensitive) sẽ thực hiện ở JS để đảm bảo mượt mà và chính xác
+      let sql = `
+         SELECT r.*, f.ingredients
+         FROM recipes r
+         LEFT JOIN recipes_fts f ON r.id = f.rowid
+         WHERE r.is_active = 1
       `;
+      const sqlParams = [];
+      if (activeTab !== "all") {
+        sql += " AND r.recipe_type = ?";
+        sqlParams.push(activeTab);
+      }
+      sql += " ORDER BY r.id DESC";
 
-      const data = await API.db_query(sql, [...params, itemsPerPage, offset]);
-      window.allRecipes = data || [];
+      const rawData = await API.db_query(sql, sqlParams);
 
-      if (window.allRecipes.length === 0) {
+      // Lọc không dấu trong JS (Giống trang Vật tư - Inventory giúp tìm "cot" ra "cốt")
+      const kw = window.removeAccents(window.recipeKeyword);
+      const filteredData = rawData.filter((item) => {
+        return (
+          window.removeAccents(item.name).includes(kw) ||
+          (item.ingredients &&
+            window.removeAccents(item.ingredients).includes(kw))
+        );
+      });
+
+      if (!filteredData || filteredData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="no-data text-center">🍁 Chưa có công thức bánh nào. Hãy nhấn "Thêm công thức mới"!</td></tr>`;
         if (paginationContainer) paginationContainer.innerHTML = "";
         return;
       }
 
       const pagingResult = window.getPagination(
-        new Array(totalItems),
+        filteredData,
         itemsPerPage,
         window.currentPageRecipes,
         (newPage) => {
@@ -139,10 +124,12 @@
         },
       );
 
+      window.allRecipes = pagingResult.data;
+
       if (paginationContainer)
         paginationContainer.innerHTML = pagingResult.html;
 
-      tbody.innerHTML = data
+      tbody.innerHTML = pagingResult.data
         .map((item, index) => {
           const stt =
             (window.currentPageRecipes - 1) * itemsPerPage + index + 1;
@@ -194,8 +181,6 @@
     window.recipeKeyword = searchVal;
     window.currentPageRecipes = 1;
     loadRecipes();
-
-    if (searchVal === "") loadRecipes(); // Đảm bảo nạp lại ngay khi xóa trắng
   }, 250);
 
   async function openRecipeModal(mode, recipeId = null) {

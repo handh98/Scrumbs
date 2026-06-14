@@ -10,6 +10,12 @@
       const paginationContainer = $("customer-pagination");
       if (!tbody) return;
 
+      // Đồng bộ keyword từ UI để đảm bảo state luôn khớp với ô nhập liệu
+      const searchInput = $("customer-search");
+      if (searchInput) {
+        window.custKeyword = searchInput.value.trim();
+      }
+
       // 🌟 ĐÃ SỬA: Chỉ COUNT những đơn có status = 'completed'
       const sql = `
         SELECT c.*, 

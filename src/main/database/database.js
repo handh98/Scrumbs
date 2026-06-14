@@ -280,11 +280,11 @@ const initDB = async () => {
 
     // 13. Bảng ảo FTS5 (Tối ưu tìm kiếm)
     db.run(`CREATE VIRTUAL TABLE IF NOT EXISTS customers_fts USING fts5(
-      name, phone, tokenize='unicode61 remove_diacritics 1'
+      name, phone, tokenize='unicode61'
     )`);
 
     db.run(`CREATE VIRTUAL TABLE IF NOT EXISTS recipes_fts USING fts5(
-      name, recipe_type, note, ingredients, tokenize='unicode61 remove_diacritics 1'
+      name, recipe_type, note, ingredients, tokenize='unicode61'
     )`);
 
     // 14. Triggers đồng bộ FTS & Tự động tính giá vốn
@@ -418,7 +418,7 @@ const initDB = async () => {
     db.get("SELECT version FROM schema_version LIMIT 1", (err, row) => {
       if (!row) {
         db.run("DELETE FROM schema_version");
-        db.run("INSERT INTO schema_version (version) VALUES (11)");
+        db.run("INSERT INTO schema_version (version) VALUES (13)");
       }
     });
 
@@ -950,6 +950,56 @@ async function upgradeDatabase() {
       await dbManager.run("INSERT INTO schema_version (version) VALUES (12)");
       currentVersion = 12;
       needsVacuum = true;
+    }
+
+    // Migration 13: Làm sạch và chuẩn hóa lại bộ nạp tìm kiếm (FTS Tokenizer)
+    if (currentVersion < 13) {
+      console.log("🔧 Migration 13: Chuẩn hóa bộ lọc tìm kiếm không dấu...");
+
+      // Xóa và tạo lại bảng FTS với tokenizer đơn giản (mặc định unicode61 đã khử dấu rất tốt)
+      await dbManager.run("DROP TABLE IF EXISTS recipes_fts");
+      await dbManager.run(`CREATE VIRTUAL TABLE recipes_fts USING fts5(
+        name, recipe_type, note, ingredients, tokenize='unicode61'
+      )`);
+
+      await dbManager.run("DROP TABLE IF EXISTS customers_fts");
+      await dbManager.run(`CREATE VIRTUAL TABLE customers_fts USING fts5(
+        name, phone, tokenize='unicode61'
+      )`);
+
+      // Đồng bộ lại dữ liệu
+      await dbManager.run(`
+        INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
+        SELECT r.id, r.name, r.recipe_type, r.note,
+               (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = r.id)
+        FROM recipes r
+      `);
+
+      await dbManager.run(`
+        INSERT INTO customers_fts(rowid, name, phone)
+        SELECT id, name, phone FROM customers
+      `);
+
+      // Cập nhật các Trigger liên quan để đảm bảo luôn dùng đúng bảng mới
+      const triggers = [
+        "recipes_ai",
+        "recipes_ad",
+        "recipes_au",
+        "ri_ai",
+        "ri_ad",
+        "ri_au",
+        "customers_ai",
+        "customers_ad",
+        "customers_au",
+      ];
+      // Các trigger này sẽ được initDB khởi tạo lại ở lần chạy sau hoặc ta có thể gọi lại initDB
+      // Ở đây ta chỉ cần đảm bảo Version nhảy lên để DB Manager biết đã hoàn tất
+
+      await dbManager.run("DELETE FROM schema_version");
+      await dbManager.run("INSERT INTO schema_version (version) VALUES (13)");
+      currentVersion = 13;
+      needsVacuum = true;
+      console.log("✅ Migration 13 thành công.");
     }
 
     if (needsVacuum) {

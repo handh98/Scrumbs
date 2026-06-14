@@ -509,6 +509,12 @@
       const tbody = $("menu-list-body");
       const paginationContainer = $("menu-pagination");
 
+      // ĐỒNG BỘ: Lấy từ khóa trực tiếp từ UI để đảm bảo logic luôn khớp với ô nhập liệu
+      const searchInput = $("menu-search");
+      if (searchInput) {
+        window.menuKeyword = searchInput.value.trim();
+      }
+
       const sql = `
         SELECT m.*,
             COALESCE((SELECT SUM(mr.ratio * (SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) / CAST(r.output AS REAL) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = mr.recipe_id)) FROM menu_recipes mr WHERE mr.menu_item_id = m.id), 0) AS total_recipe_cost,
@@ -606,9 +612,12 @@
   };
 
   window.searchMenu = window.debounce(() => {
-    window.menuKeyword = $("menu-search")?.value.trim() || "";
+    const searchVal = $("menu-search")?.value.trim() || "";
+    window.menuKeyword = searchVal;
     window.currentPageMenu = 1;
     window.loadMenu();
+
+    if (searchVal === "") window.loadMenu(); // Nạp lại ngay lập tức nếu xóa trắng
   }, 300);
 
   window.openMenuModal = async () => {
