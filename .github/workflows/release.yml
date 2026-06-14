@@ -10,8 +10,6 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # Chấp nhận chạy Actions trên Node 24 theo khuyến nghị
     permissions:
       contents: write # Cấp quyền ghi để tạo và tải lên Release
 
@@ -22,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24 # Nâng cấp lên Node 24 để tương thích với Electron 41
+          node-version: 22 # Cập nhật lên Node 22 LTS để tương thích với @electron/rebuild v4
           cache: "npm"
 
       - name: Install dependencies

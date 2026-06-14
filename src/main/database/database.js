@@ -12,29 +12,56 @@ if (!fs.existsSync(userDataPath)) {
   fs.mkdirSync(userDataPath, { recursive: true });
 }
 
-// dùng đường dẫn tạm thời trong quá trình phát triển để dễ dàng reset DB
-// const dbPath = path.join(process.cwd(), "bakery.db");
+let db;
 
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error("❌ Lỗi kết nối CSDL:", err.message);
-  } else {
-    console.log("✅ Kết nối CSDL thành công!");
-    // Tối ưu hóa hiệu năng hệ thống ngay khi khởi động
-    db.serialize(() => {
-      db.run("PRAGMA journal_mode = WAL"); // Cho phép đọc/ghi song song
-      db.run("PRAGMA synchronous = NORMAL"); // Tăng tốc độ ghi
-      db.run("PRAGMA cache_size = -2000"); // Sử dụng khoảng 2MB bộ nhớ đệm
-      db.run("PRAGMA temp_store = MEMORY"); // Lưu bảng tạm trong RAM
+/**
+ * Kết nối CSDL (Promise-based)
+ */
+const connectDB = () => {
+  return new Promise((resolve, reject) => {
+    // Kiểm tra xem tệp tin có bị khóa hoặc lỗi hệ thống không trước khi mở
+    if (fs.existsSync(dbPath)) {
+      try {
+        fs.accessSync(dbPath, fs.constants.R_OK | fs.constants.W_OK);
+      } catch (err) {
+        console.error(
+          "❌ Không thể truy cập tệp tin Database (lỗi OS hoặc quyền):",
+          err.message,
+        );
+        return reject(
+          new Error(
+            "Cơ sở dữ liệu bị hỏng hoặc không thể đọc. Vui lòng kiểm tra ổ đĩa.",
+          ),
+        );
+      }
+    }
+
+    db = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        console.error("❌ Lỗi kết nối CSDL:", err.message);
+        reject(err);
+      } else {
+        console.log("✅ Kết nối CSDL thành công!");
+        db.serialize(() => {
+          db.run("PRAGMA journal_mode = WAL");
+          db.run("PRAGMA synchronous = NORMAL");
+          db.run("PRAGMA cache_size = -2000");
+          db.run("PRAGMA temp_store = MEMORY");
+          resolve();
+        });
+      }
     });
-    (async () => {
-      // Đợi một chút để cửa sổ kịp sẵn sàng nhận tin nhắn nếu app khởi động quá nhanh
-      setTimeout(async () => {
-        await upgradeDatabase();
-      }, 1000);
-    })();
-  }
-});
+
+    db.on("error", (err) => {
+      if (err.message.includes("disk I/O error")) {
+        console.error(
+          "🚨 Lỗi I/O ổ đĩa nghiêm trọng (OS Error 1392 có thể liên quan):",
+          err,
+        );
+      }
+    });
+  });
+};
 
 /**
  * Gửi thông báo xuống giao diện người dùng
@@ -102,6 +129,9 @@ async function createBackup() {
  * KHỞI TẠO CẤU TRÚC DATABASE (DÀNH CHO DB MỚI)
  */
 const initDB = async () => {
+  // Ensure DB is connected before initialization
+  if (!db) await connectDB();
+
   console.log("🚀 Đang khởi tạo CSDL mới...");
   // db.run("DROP TABLE IF EXISTS schema_version"); // Dùng để reset schema_version trong dev
 
@@ -941,9 +971,25 @@ async function upgradeDatabase() {
   }
 }
 
+/**
+ * KHỞI CHẠY TOÀN BỘ QUY TRÌNH SETUP CSDL
+ */
+const setupDatabase = async () => {
+  try {
+    await connectDB();
+    await initDB();
+    await upgradeDatabase();
+  } catch (err) {
+    console.error("❌ Lỗi khởi tạo CSDL tổng thể:", err);
+    throw err;
+  }
+};
+
 module.exports = {
-  initDB,
-  db,
+  setupDatabase,
+  get db() {
+    return db;
+  },
   query: dbManager.all,
   get: dbManager.get,
   run: dbManager.run,

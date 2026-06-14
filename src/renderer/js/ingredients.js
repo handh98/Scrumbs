@@ -74,10 +74,31 @@
     const tbody = $("ing-list-body");
     const paginationContainer = $("pagination-container");
     if (!tbody) return;
-    window.toggleLoader(true);
-    window.currentKeyword ??= "";
 
     try {
+      window.toggleLoader(true);
+      window.currentKeyword ??= "";
+
+      // ĐỒNG BỘ UI VỚI STATE (Đảm bảo ô tìm kiếm khớp với bộ lọc đang chạy)
+      const searchInput = $("ing-search");
+      if (searchInput) {
+        // Nếu ô tìm kiếm trống (do vừa nạp trang), ta reset keyword về trống để hiện đủ data
+        if (searchInput.value === "") {
+          window.currentKeyword = "";
+        } else {
+          window.currentKeyword = searchInput.value.trim();
+        }
+      }
+
+      // Đồng bộ Tab đang hiển thị với loại dữ liệu đang nạp
+      const tabIngredient = $("tab-btn-ingredient");
+      const tabPackage = $("tab-btn-package");
+      if (tabIngredient && tabPackage) {
+        const isPackage = window.currentIngType === "package";
+        tabPackage.classList.toggle("active", isPackage);
+        tabIngredient.classList.toggle("active", !isPackage);
+      }
+
       if (!window.ingredientsSourceData) {
         const raw = await API.db_query(
           `SELECT id, name, price, qty, unit, unit_price, note, type
@@ -103,17 +124,17 @@
           ) || 1;
       }
 
-      if (window.allIngredients && window.allIngredients.length > 0) {
-        const pagingResult = window.getPagination(
-          window.allIngredients,
-          itemsPerPage,
-          window.currentPage,
-          (newPage) => {
-            window.currentPage = newPage;
-            loadIngredients();
-          },
-        );
+      const pagingResult = window.getPagination(
+        window.allIngredients || [],
+        itemsPerPage,
+        window.currentPage,
+        (newPage) => {
+          window.currentPage = newPage;
+          loadIngredients();
+        },
+      );
 
+      if (window.allIngredients && window.allIngredients.length > 0) {
         const startIndex = (window.currentPage - 1) * itemsPerPage;
         tbody.innerHTML = pagingResult.data
           .map((item, index) => {
@@ -354,12 +375,17 @@
   // Khởi tạo listeners cho việc định dạng input tự động
   function initInputFormatters() {
     const els = getFormElements();
-    [els.price, els.qty].forEach((el) => {
+    const inputs = [els.price, els.qty];
+
+    inputs.forEach((el) => {
       if (!el) return;
+      if (el.dataset.listenerAttached) return; // Tránh gắn trùng listener
+
       el.addEventListener("input", () => {
         window.formatInputOnType(el);
         calculateUnitPrice();
       });
+      el.dataset.listenerAttached = "true";
     });
   }
 

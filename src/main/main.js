@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
-const { initDB } = require("./database/database");
+const { setupDatabase } = require("./database/database");
 const { autoUpdater } = require("electron-updater");
 const { registerDatabaseIPC } = require("./ipc/databaseIPC");
 
@@ -55,8 +55,8 @@ function sendUpdateStatusToRenderer(text, type = "info") {
   }
 }
 
-app.whenReady().then(() => {
-  initDB();
+app.whenReady().then(async () => {
+  await setupDatabase();
   registerDatabaseIPC();
 
   // --- Cấu hình và kiểm tra cập nhật tự động ---

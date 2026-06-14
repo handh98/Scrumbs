@@ -73,6 +73,12 @@
       const paginationContainer = $("recipes-pagination");
       if (!tbody) return;
 
+      // Đồng bộ keyword từ UI để đảm bảo state luôn khớp với ô nhập liệu
+      const searchInput = $("recipe-search");
+      if (searchInput) {
+        window.recipeKeyword = searchInput.value.trim();
+      }
+
       const activeTab = window.activeRecipeTab || "all";
       let whereClause = " WHERE r.is_active = 1";
       let params = [];
@@ -84,9 +90,9 @@
 
       if (window.recipeKeyword) {
         // Escape dấu ngoặc kép và bọc từ khóa để tránh lỗi cú pháp FTS5 khi có dấu cách
-        const safeKeyword = window.recipeKeyword.replace(/"/g, '""');
-        whereClause += " AND recipes_fts MATCH ?";
-        params.push(`"${safeKeyword}"*`);
+        const safeKeyword = window.recipeKeyword.trim().replace(/"/g, '""');
+        whereClause += " AND fts MATCH ?"; // Sử dụng alias fts để đồng bộ với JOIN
+        params.push(`${safeKeyword}*`);
       }
 
       const joinClause = window.recipeKeyword
