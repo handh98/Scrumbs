@@ -190,10 +190,13 @@
   }
 
   const searchRecipes = window.debounce(() => {
-    window.recipeKeyword = $("recipe-search")?.value.trim() || "";
+    const searchVal = $("recipe-search")?.value.trim() || "";
+    window.recipeKeyword = searchVal;
     window.currentPageRecipes = 1;
     loadRecipes();
-  }, 300);
+
+    if (searchVal === "") loadRecipes(); // Đảm bảo nạp lại ngay khi xóa trắng
+  }, 250);
 
   async function openRecipeModal(mode, recipeId = null) {
     currentModalMode = mode || "view";

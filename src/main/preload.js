@@ -17,6 +17,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener("update-message", subscription);
   },
 
+  // Lệnh cài đặt bản cập nhật
+  installUpdate: () => ipcRenderer.send("install-update"),
+
+  // Mở thư mục chứa file log
+  openLogsFolder: () => ipcRenderer.invoke("open-logs-folder"),
+
   // Lấy phiên bản ứng dụng
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
 

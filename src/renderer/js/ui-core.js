@@ -1,3 +1,6 @@
+// Biến trạng thái để theo dõi nếu người dùng chọn chạy ngầm bản cập nhật
+window.isUpdateModalDismissed = false;
+
 // Hàm này để nạp các thứ dùng chung như Tooltip, Modal...
 async function setupGlobalUI() {
   try {
@@ -34,13 +37,59 @@ async function setupGlobalUI() {
     if (window.electronAPI && window.electronAPI.onUpdateMessage) {
       window.electronAPI.onUpdateMessage((data) => {
         console.log("Update Status:", data);
-        if (data.type === "loading") window.toggleLoader?.(true);
-        if (data.type === "success") window.toggleLoader?.(false);
-        if (window.showToast)
-          window.showToast(
-            data.message,
-            data.type === "loading" ? "info" : data.type,
-          );
+
+        if (data.type === "error") {
+          window.toggleLoader?.(false);
+          toggleUpdateIndicator(false); // Tắt icon quay ở góc màn hình
+
+          const wasBackground = window.isUpdateModalDismissed;
+          window.isUpdateModalDismissed = false; // Reset để có thể hiện modal lỗi
+
+          if (wasBackground && window.showConfirm) {
+            // Nếu đang tải ngầm mà lỗi, hiện hẳn Modal để người dùng chú ý
+            window
+              .showConfirm(
+                "Lỗi tải cập nhật ⚠️",
+                `Quá trình tải bản cập nhật ngầm đã bị gián đoạn. Vui lòng kiểm tra kết nối mạng.`,
+                {
+                  icon: "❌",
+                  confirmText: "Đã hiểu",
+                  cancelText: "Xem nhật ký",
+                },
+              )
+              .then((confirmed) => {
+                if (confirmed === false) window.electronAPI.openLogsFolder();
+              });
+            return;
+          }
+        }
+
+        if (data.type === "downloaded") {
+          // Hiển thị modal xác nhận thay vì thông báo toast đơn thuần
+          if (window.showConfirm) {
+            window
+              .showConfirm(
+                "Sẵn sàng nâng cấp! ✨",
+                "Phiên bản mới đã được tải về thành công. Bạn có muốn khởi động lại ứng dụng để trải nghiệm các tính năng mới ngay bây giờ không?",
+                {
+                  icon: "🚀",
+                  confirmText: "Cập nhật ngay",
+                  cancelText: "Để sau",
+                  showLoadingOnConfirm: true,
+                },
+              )
+              .then((confirmed) => {
+                if (confirmed) window.electronAPI.installUpdate();
+              });
+          }
+        } else {
+          // Hiển thị các thông báo trạng thái khác (đang tải, kiểm tra...) qua toast
+          if (window.showToast)
+            window.showToast(
+              data.message,
+              data.type === "loading" ? "info" : data.type,
+            );
+        }
       });
     }
   } catch (err) {
@@ -65,6 +114,38 @@ window.toggleLoader = (show) => {
     loader.remove();
   }
 };
+
+// Hàm quản lý icon báo hiệu tải ngầm ở góc màn hình
+function toggleUpdateIndicator(show, percent = 0) {
+  let indicator = document.getElementById("bg-update-indicator");
+
+  if (show && window.isUpdateModalDismissed) {
+    if (!indicator) {
+      indicator = document.createElement("div");
+      indicator.id = "bg-update-indicator";
+      indicator.className = "update-bg-badge";
+      indicator.title = "Đang tải bản cập nhật. Nhấn để xem chi tiết.";
+      indicator.innerHTML = `
+        <div class="spinner-mini"></div>
+        <span class="percent-text">0%</span>
+      `;
+
+      // Khi click vào icon thì hiện lại modal
+      indicator.onclick = () => {
+        window.isUpdateModalDismissed = false;
+        indicator.style.display = "none";
+      };
+
+      document.body.appendChild(indicator);
+    }
+
+    indicator.style.display = "flex";
+    const text = indicator.querySelector(".percent-text");
+    if (text) text.innerText = `${percent}%`;
+  } else if (indicator) {
+    indicator.style.display = "none";
+  }
+}
 
 // Gọi nó ngay khi file này được load
 setupGlobalUI();

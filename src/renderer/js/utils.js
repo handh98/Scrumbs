@@ -35,23 +35,73 @@ window.loadComponent = async (name) => {
   }
 };
 
-window.showConfirm = async (title, message) => {
+window.showConfirm = async (title, message, options = {}) => {
   await window.loadComponent("confirm-modal");
   return new Promise((resolve) => {
     const modal = $("confirm-modal");
-    modal.querySelector("#confirm-modal-title").innerText = title;
-    modal.querySelector("#confirm-modal-message").innerText = message;
+    if (modal.querySelector("#confirm-modal-title"))
+      modal.querySelector("#confirm-modal-title").innerText = title;
+    if (modal.querySelector("#confirm-modal-message"))
+      modal.querySelector("#confirm-modal-message").innerText = message;
+
+    // Hỗ trợ hiển thị icon nếu có (ví dụ: emoji hoặc SVG)
+    const iconEl = modal.querySelector("#confirm-modal-icon");
+    if (iconEl) iconEl.innerHTML = options.icon || "❓";
+
+    const confirmBtn = $("confirm-modal-confirm-btn");
+    const cancelBtn = $("confirm-modal-cancel-btn");
+    const bgBtn = $("confirm-modal-bg-btn");
+
+    if (confirmBtn) confirmBtn.innerText = options.confirmText || "Đồng ý";
+    if (confirmBtn) confirmBtn.disabled = !!options.disableConfirm;
+    if (cancelBtn) cancelBtn.innerText = options.cancelText || "Hủy";
+    if (bgBtn) {
+      bgBtn.style.display = options.backgroundText ? "inline-block" : "none";
+      bgBtn.innerText = options.backgroundText || "";
+    }
+
+    const progressWrapper = $("confirm-modal-progress-wrapper");
+    if (progressWrapper)
+      progressWrapper.style.display = options.showProgress ? "block" : "none";
+
     modal.style.display = "flex";
 
-    $("confirm-modal-confirm-btn").onclick = () => {
-      modal.style.display = "none";
-      resolve(true);
-    };
-    $("confirm-modal-cancel-btn").onclick = () => {
+    if (confirmBtn) {
+      confirmBtn.classList.remove("btn-loading");
+      confirmBtn.disabled = false;
+      confirmBtn.onclick = () => {
+        if (options.showLoadingOnConfirm) {
+          confirmBtn.classList.add("btn-loading");
+          confirmBtn.disabled = true;
+          if (cancelBtn) cancelBtn.style.display = "none";
+        } else {
+          modal.style.display = "none";
+        }
+        resolve(true);
+      };
+    }
+    if (cancelBtn) cancelBtn.style.display = "inline-block";
+    cancelBtn.onclick = () => {
       modal.style.display = "none";
       resolve(false);
     };
+
+    if (bgBtn) {
+      bgBtn.onclick = () => {
+        modal.style.display = "none";
+        resolve("background");
+      };
+    }
   });
+};
+
+window.updateConfirmProgress = (percent, message) => {
+  const bar = $("confirm-modal-progress-bar");
+  const text = $("confirm-modal-progress-text");
+  const wrapper = $("confirm-modal-progress-wrapper");
+  if (wrapper) wrapper.style.display = "block";
+  if (bar) bar.style.width = `${percent}%`;
+  if (text && message) text.innerText = message;
 };
 
 window.showToast = async (msg, type = "success") => {

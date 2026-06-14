@@ -5,9 +5,28 @@
     </div>
     <div class="confirm-modal-body">
       <p id="confirm-modal-message"></p>
+      <div
+        id="confirm-modal-progress-wrapper"
+        style="display: none; margin-top: 15px"
+      >
+        <div class="progress-bar-container">
+          <div id="confirm-modal-progress-bar" class="progress-bar-fill"></div>
+        </div>
+        <small
+          id="confirm-modal-progress-text"
+          style="color: var(--text-chocolate); font-size: 11px"
+        ></small>
+      </div>
     </div>
     <div class="confirm-modal-footer">
       <button id="confirm-modal-cancel-btn" class="btn-secondary">Hủy</button>
+      <button
+        id="confirm-modal-bg-btn"
+        class="btn-secondary"
+        style="display: none"
+      >
+        Chạy ngầm
+      </button>
       <button id="confirm-modal-confirm-btn" class="btn-primary">Đồng ý</button>
     </div>
   </div>
