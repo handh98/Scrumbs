@@ -1,6 +1,6 @@
 {
   "name": "crumbs-app",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "main": "src/main/main.js",
   "scripts": {
     "start": "chcp 65001 > nul && electron .",
@@ -26,7 +26,8 @@
   "dependencies": {
     "electron-log": "^4.4.8",
     "electron-updater": "^6.8.9",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "exceljs": "^4.4.0"
   },
   "build": {
     "appId": "com.tiembanh.app",

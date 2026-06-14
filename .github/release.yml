@@ -1,0 +1,16 @@
+changelog:
+  exclude:
+    labels:
+      - ignore
+  categories:
+    - title: "🚀 Tính năng mới"
+      labels:
+        - enhancement
+        - feature
+    - title: "🛠️ Sửa lỗi"
+      labels:
+        - bug
+    - title: "🧹 Bảo trì"
+      collapse_after: 3
+      labels:
+        - chore

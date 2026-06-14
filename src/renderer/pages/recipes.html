@@ -84,38 +84,75 @@
     </div>
 
     <div class="modal-body">
-      <div class="form-row">
-        <div class="form-group flex-1">
-          <label for="rec-name">
-            Tên công thức <span class="text-danger">*</span>
-          </label>
-          <input
-            type="text"
-            id="rec-name"
-            placeholder="Ví dụ: Bánh Mì Hoa Cúc, Bánh Bông Lan..."
-          />
-        </div>
-        <div class="form-group" style="width: 150px">
-          <label for="rec-type">Phân loại</label>
+      <!-- Tên bánh (Để riêng một hàng cho rộng rãi) -->
+      <div class="form-group">
+        <label for="rec-name"
+          >Tên bánh / Công thức <span class="text-danger">*</span></label
+        >
+        <input
+          type="text"
+          id="rec-name"
+          placeholder="Ví dụ: Bánh Mì Hoa Cúc, Bánh Bông Lan..."
+        />
+      </div>
+
+      <!-- Upload ảnh (Chỉ hiện khi Edit/Add) -->
+      <div class="form-group image-upload-group edit-visible">
+        <label>📸 Thêm ảnh minh họa:</label>
+        <input
+          type="file"
+          id="recipe-image-upload"
+          accept="image/*"
+          onchange="window.handleImageSelect(event)"
+        />
+      </div>
+
+      <!-- Vùng hiển thị ảnh preview (Nằm dưới input chọn ảnh) -->
+      <div
+        id="recipe-image-preview-container"
+        class="image-preview-container"
+        style="display: none"
+      >
+        <img id="recipe-image-preview" src="" alt="Ảnh công thức" />
+        <button
+          type="button"
+          id="btn-clear-image"
+          class="btn-clear-image edit-visible"
+          onclick="window.clearRecipeImage()"
+          title="Xóa ảnh"
+        >
+          ❌
+        </button>
+      </div>
+
+      <!-- Hàng chứa thông tin phụ: Phân loại, Thời gian, Định lượng -->
+      <div class="recipe-meta-row">
+        <!-- Phân loại -->
+        <div class="form-group">
+          <label for="rec-type">📁 Phân loại:</label>
           <select id="rec-type">
             <option value="general">Chung</option>
             <option value="crust">Vỏ bánh</option>
             <option value="filling">Nhân bánh</option>
           </select>
         </div>
-        <div class="form-row-sub flex-2">
-          <div class="form-group">
-            <label for="rec-cook-time">Thời gian làm (phút)</label>
-            <input type="number" id="rec-cook-time" min="0" placeholder="60" />
-          </div>
-          <div class="form-group">
-            <label for="rec-output-text">Định lượng đầu ra</label>
-            <input
-              type="text"
-              id="rec-output-text"
-              placeholder="Ví dụ: 2 ổ 300g, 1 ổ 20cm"
-            />
-          </div>
+
+        <!-- Thời gian -->
+        <div class="form-group">
+          <label for="rec-cook-time">🕒 Thời gian (phút):</label>
+          <input type="number" id="rec-cook-time" min="0" placeholder="60" />
+        </div>
+
+        <!-- Định lượng -->
+        <div class="form-group">
+          <label for="rec-output-text">⚖️ Định lượng (cái):</label>
+          <input
+            type="number"
+            id="rec-output-text"
+            min="1"
+            placeholder="10"
+            oninput="window.updateRecipeScale(this.value)"
+          />
         </div>
       </div>
 
@@ -209,6 +246,14 @@
     </div>
 
     <div class="modal-footer">
+      <button
+        id="export-pdf-btn"
+        class="btn-secondary"
+        onclick="window.exportRecipeToPdf()"
+        style="display: none"
+      >
+        📄 Xuất PDF
+      </button>
       <button
         type="button"
         class="btn-secondary"

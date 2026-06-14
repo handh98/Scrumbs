@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Công Thức Bánh</title>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        margin: 20mm;
+        color: #333;
+        line-height: 1.6;
+        font-size: 12pt;
+      }
+      h1,
+      h2,
+      h3 {
+        color: #bc5a1a; /* Màu nâu cam */
+        text-align: center;
+        margin-bottom: 10px;
+      }
+      h1 {
+        font-size: 24pt;
+        border-bottom: 2px solid #ffe9db;
+        padding-bottom: 5px;
+      }
+      h2 {
+        font-size: 18pt;
+        margin-top: 20px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+      }
+      .section {
+        margin-bottom: 15px;
+      }
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+      }
+      .info-row span {
+        font-weight: bold;
+      }
+      .ingredients-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      .ingredients-table th,
+      .ingredients-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      .ingredients-table th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+        color: #555;
+      }
+      .ingredients-table td:nth-child(3),
+      .ingredients-table td:nth-child(4),
+      .ingredients-table td:nth-child(5) {
+        text-align: right;
+      }
+      .steps-list {
+        list-style-type: decimal;
+        padding-left: 20px;
+      }
+      .steps-list li {
+        margin-bottom: 8px;
+      }
+      .note {
+        background-color: #fffbe6;
+        border-left: 4px solid #ffe082;
+        padding: 10px;
+        margin-top: 20px;
+        font-style: italic;
+      }
+      .total-cost {
+        text-align: right;
+        font-size: 14pt;
+        font-weight: bold;
+        margin-top: 20px;
+        color: #d32f2f; /* Màu đỏ */
+      }
+      .scale-info {
+        font-size: 10pt;
+        color: #777;
+        text-align: center;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="recipe-content"></div>
+
+    <script>
+      window.renderRecipePdf = (recipeData) => {
+        const contentDiv = document.getElementById("recipe-content");
+        let html = `<h1>${recipeData.name}</h1>`;
+
+        if (recipeData.scaleFactor !== 1) {
+          html += `<p class="scale-info">Công thức đã được điều chỉnh từ ${recipeData.originalOutput} cái lên ${recipeData.output.toLocaleString("vi-VN", { maximumFractionDigits: 2 })} cái (tỉ lệ x${recipeData.scaleFactor.toFixed(2)})</p>`;
+        }
+
+        html += `<div class="section">
+                <div class="info-row">
+                    <span>Thời gian nấu:</span> <span>${recipeData.cookTime ? recipeData.cookTime + " phút" : "---"}</span>
+                </div>
+                <div class="info-row">
+                    <span>Định lượng:</span> <span>${recipeData.output.toLocaleString("vi-VN", { maximumFractionDigits: 2 })} cái</span>
+                </div>
+            </div>`;
+
+        html += `<h2>Nguyên liệu</h2>
+            <table class="ingredients-table">
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Tên nguyên liệu</th>
+                        <th>Số lượng</th>
+                        <th>Đơn vị</th>
+                        <th>Giá vốn</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        recipeData.ingredients.forEach((ing, index) => {
+          html += `<tr>
+                    <td>${index + 1}</td>
+                    <td>${ing.name}</td>
+                    <td>${ing.qty.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}</td>
+                    <td>${ing.unit}</td>
+                    <td>${Math.round(ing.cost).toLocaleString("vi-VN")} đ</td>
+                </tr>`;
+        });
+        html += `</tbody></table>`;
+
+        html += `<div class="total-cost">Tổng giá vốn ước tính: ${Math.round(recipeData.totalCost).toLocaleString("vi-VN")} đ</div>`;
+
+        if (recipeData.steps && recipeData.steps.length > 0) {
+          html += `<h2>Các bước thực hiện</h2>
+                <ol class="steps-list">`;
+          recipeData.steps.forEach((step) => {
+            html += `<li>${step}</li>`;
+          });
+          html += `</ol>`;
+        }
+
+        if (recipeData.note) {
+          html += `<div class="note">Ghi chú: ${recipeData.note}</div>`;
+        }
+
+        contentDiv.innerHTML = html;
+      };
+    </script>
+  </body>
+</html>

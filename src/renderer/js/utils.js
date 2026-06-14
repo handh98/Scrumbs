@@ -223,6 +223,23 @@ window.removeAccents = (str) => {
   return result;
 };
 
+window.highlightMatch = (text, query) => {
+  if (!query || !text) return text;
+  const cleanText = window.removeAccents(text);
+  const cleanQuery = window.removeAccents(query);
+  const index = cleanText.indexOf(cleanQuery);
+
+  if (index >= 0) {
+    const originalPart = text.substring(index, index + query.length);
+    return (
+      text.substring(0, index) +
+      `<mark class="search-highlight">${originalPart}</mark>` +
+      text.substring(index + query.length)
+    );
+  }
+  return text;
+};
+
 // 3. Xử lý trực tiếp khi gõ vào ô input (Chống nhảy chuột, cho phép nhập số thập phân)
 window.formatInputOnType = (inputElement) => {
   let cursorPosition = inputElement.selectionStart;

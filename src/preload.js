@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
   // Expose functions from main process to renderer process
@@ -9,4 +9,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("migration-status", (event, data) => callback(data)),
   onUpdateMessage: (callback) =>
     ipcRenderer.on("update-message", (event, data) => callback(data)),
+
+  // Lấy đường dẫn tệp an toàn (Electron 28+)
+  getPathForFile: (file) => webUtils.getPathForFile(file),
 });

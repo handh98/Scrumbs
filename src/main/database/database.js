@@ -159,6 +159,7 @@ const initDB = async () => {
       total_cost REAL DEFAULT 0, -- Cột mới để tối ưu hiệu năng
       recipe_type TEXT DEFAULT 'general', -- 'crust', 'filling', 'general'
       note TEXT,
+      image_path TEXT, -- Cột mới để lưu đường dẫn ảnh đại diện
       is_active INTEGER DEFAULT 1
     )`);
 
@@ -418,7 +419,7 @@ const initDB = async () => {
     db.get("SELECT version FROM schema_version LIMIT 1", (err, row) => {
       if (!row) {
         db.run("DELETE FROM schema_version");
-        db.run("INSERT INTO schema_version (version) VALUES (13)");
+        db.run("INSERT INTO schema_version (version) VALUES (14)");
       }
     });
 
@@ -1000,6 +1001,22 @@ async function upgradeDatabase() {
       currentVersion = 13;
       needsVacuum = true;
       console.log("✅ Migration 13 thành công.");
+    }
+
+    // Migration 14: Bổ sung cột lưu đường dẫn ảnh đại diện cho công thức
+    if (currentVersion < 14) {
+      console.log(
+        "🔧 Migration 14: Kiểm tra và bổ sung cột image_path cho bảng recipes...",
+      );
+      const columns = await dbManager.all("PRAGMA table_info(recipes)");
+      if (!columns.some((col) => col.name === "image_path")) {
+        await dbManager.run("ALTER TABLE recipes ADD COLUMN image_path TEXT");
+      }
+      await dbManager.run("DELETE FROM schema_version");
+      await dbManager.run("INSERT INTO schema_version (version) VALUES (14)");
+      currentVersion = 14;
+      needsVacuum = true;
+      console.log("✅ Migration 14 thành công.");
     }
 
     if (needsVacuum) {

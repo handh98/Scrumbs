@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+      content="default-src 'self'; img-src 'self' data: blob: app-img:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
     />
     <title>Crumbs</title>
     <link rel="stylesheet" href="src/renderer/css/global.css" />
@@ -81,16 +81,6 @@
               alt="Customers Icon"
               class="icon"
             />Khách Hàng
-          </button>
-        </div>
-      </nav>
-
-      <main class="main-content">
-        <div id="book-frame" class="book-frame">
-          <div id="page-render" class="fade-in"></div>
-        </div>
-      </main>
-    </div>
           </button>
         </div>
       </nav>

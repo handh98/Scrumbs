@@ -1,10 +1,34 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  shell,
+  dialog,
+  protocol,
+  net,
+} = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { pathToFileURL, fileURLToPath } = require("url");
 const { setupDatabase } = require("./database/database");
 const { autoUpdater } = require("electron-updater");
 const { registerDatabaseIPC } = require("./ipc/databaseIPC");
 const log = require("electron-log");
+const ExcelJS = require("exceljs");
+
+// --- Đăng ký các Protocol đặc quyền trước khi App Ready ---
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "app-img",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: true,
+      stream: true,
+    },
+  },
+]);
 
 // --- Cấu hình Logger ---
 log.transports.file.level = "info";
@@ -17,6 +41,36 @@ log.info("--- Ứng dụng Crumbs đang khởi động ---");
 log.info(`Phiên bản: ${app.getVersion()}`);
 log.info(`Nền tảng: ${process.platform} (${process.arch})`);
 log.info(`Đường dẫn DB: ${path.join(app.getPath("userData"), "bakery.db")}`);
+
+// --- Xử lý lỗi hệ thống để app không thoát đột ngột ---
+
+// Bắt lỗi từ các Promise bị rejected mà không có .catch()
+process.on("unhandledRejection", (reason, promise) => {
+  log.error("🚨 Unhandled Rejection tại:", promise, "Lý do:", reason);
+
+  // Tùy chọn: Hiển thị thông báo cho người dùng thay vì thoát app
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    dialog.showMessageBox(mainWindow, {
+      type: "error",
+      title: "Lỗi hệ thống (Promise)",
+      message:
+        "Đã xảy ra lỗi không mong muốn trong tiến trình chính. Vui lòng kiểm tra nhật ký.",
+      detail: reason?.stack || reason?.toString(),
+    });
+  }
+});
+
+// Bắt các lỗi đồng bộ chưa được xử lý
+process.on("uncaughtException", (error) => {
+  log.error("🚨 Uncaught Exception:", error);
+
+  dialog.showErrorBox(
+    "Lỗi ứng dụng nghiêm trọng",
+    `Đã xảy ra lỗi hệ thống: ${error.message}\n\nỨng dụng sẽ cố gắng tiếp tục chạy, nhưng một số tính năng có thể không ổn định.`,
+  );
+
+  // Thông thường với uncaughtException, app nên được khởi động lại nếu lỗi quá nặng
+});
 
 let mainWindow;
 let splashWindow;
@@ -42,7 +96,7 @@ function createMainWindow() {
     show: false, // QUAN TRỌNG: Ẩn đi cho đến khi load xong
     icon: path.join(__dirname, "../renderer/assets/icon.ico"),
     webPreferences: {
-      preload: path.join(__dirname, "..", "preload.js"),
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -77,6 +131,36 @@ app.whenReady().then(async () => {
   await setupDatabase();
   registerDatabaseIPC();
   cleanOldLogs(); // Chạy dọn dẹp log cũ khi khởi động
+
+  // Đăng ký protocol để load ảnh từ ổ đĩa (tránh lỗi bảo mật Not allowed to load local resource)
+  protocol.handle("app-img", (request) => {
+    try {
+      // Bóc tách URL để lấy đường dẫn tệp tin thực tế
+      const url = new URL(request.url);
+      let filePath = decodeURIComponent(url.pathname);
+
+      if (process.platform === "win32") {
+        // Fix lỗi Chromium chuẩn hóa ổ đĩa trên Windows:
+        // Nếu URL có dạng app-img://c/path thì 'c' sẽ nằm ở host
+        if (url.host && /^[a-zA-Z]$/.test(url.host)) {
+          filePath = url.host + ":" + filePath;
+        } else if (filePath.startsWith("/")) {
+          // Trường hợp pathname bắt đầu bằng /C:/...
+          filePath = filePath.slice(1);
+        }
+        filePath = path.normalize(filePath);
+      } else {
+        filePath = path.normalize(filePath);
+      }
+
+      // Sử dụng net.fetch kết hợp pathToFileURL để hỗ trợ streaming và OneDrive
+      // Cách này giúp Chromium tự động quản lý Mime-type và kích thước tệp.
+      return net.fetch(pathToFileURL(filePath).toString());
+    } catch (err) {
+      log.error(`[app-img] Lỗi xử lý request ${request.url}:`, err);
+      return new Response("Not Found", { status: 404 });
+    }
+  });
 
   // --- Cấu hình và kiểm tra cập nhật tự động ---
   autoUpdater.logger = log;
@@ -163,6 +247,189 @@ function cleanOldLogs() {
 ipcMain.handle("open-logs-folder", () => {
   const logPath = path.dirname(log.transports.file.getFile().path);
   shell.openPath(logPath);
+});
+
+// IPC xử lý xuất Excel
+ipcMain.handle(
+  "export-statistics-excel",
+  async (event, { orders, products, fileName }) => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+
+      // --- SHEET 1: CHI TIẾT DOANH THU ---
+      const sheet1 = workbook.addWorksheet("Doanh Thu Chi Tiết");
+      if (orders.length > 0) {
+        const headerKeys = Object.keys(orders[0]);
+        sheet1.columns = headerKeys.map((key) => ({
+          header: key,
+          key: key,
+          width: key === "Khách hàng" ? 25 : 15,
+        }));
+        sheet1.addRows(orders);
+
+        // Định dạng tiêu đề cho Sheet 1
+        const headerRow = sheet1.getRow(1);
+        headerRow.font = {
+          name: "Arial",
+          bold: true,
+          color: { argb: "FFFFFFFF" },
+        };
+        headerRow.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF6366F1" }, // Màu Indigo (giống biểu đồ)
+        };
+        headerRow.alignment = { vertical: "middle", horizontal: "center" };
+      }
+
+      // --- SHEET 2: THỐNG KÊ SẢN PHẨM ---
+      const sheet2 = workbook.addWorksheet("Thống Kê Sản Phẩm");
+      if (products.length > 0) {
+        const productKeys = Object.keys(products[0]);
+        sheet2.columns = productKeys.map((key) => ({
+          header: key,
+          key: key,
+          width: 30,
+        }));
+        sheet2.addRows(products);
+
+        // Định dạng tiêu đề cho Sheet 2
+        const headerRow2 = sheet2.getRow(1);
+        headerRow2.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        headerRow2.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF10B981" }, // Màu Emerald xanh lá
+        };
+        headerRow2.alignment = { vertical: "middle", horizontal: "center" };
+      }
+
+      // Hiển thị hộp thoại lưu file
+      const { filePath } = await dialog.showSaveDialog({
+        title: "Lưu báo cáo doanh thu",
+        defaultPath: fileName,
+        filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
+      });
+
+      if (filePath) {
+        await workbook.xlsx.writeFile(filePath);
+        return { success: true, path: filePath };
+      }
+      return { success: false };
+    } catch (error) {
+      log.error("Lỗi xuất Excel:", error);
+      throw error;
+    }
+  },
+);
+
+// IPC xử lý xuất PDF công thức
+ipcMain.handle("export-recipe-pdf", async (event, recipeData) => {
+  let pdfWindow; // Khai báo ngoài try để khối finally có thể truy cập
+  try {
+    pdfWindow = new BrowserWindow({
+      show: false, // In ngầm không hiển thị UI
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Nạp HTML template cho PDF
+    // Dựa trên cấu trúc file hiện tại, file nằm cùng thư mục với main.js (src/main/)
+    const pdfTemplatePath = path.join(__dirname, "recipe-pdf-template.html");
+
+    await pdfWindow.loadFile(pdfTemplatePath);
+
+    // Gửi dữ liệu công thức vào template HTML
+    await pdfWindow.webContents.executeJavaScript(`
+      window.renderRecipePdf(${JSON.stringify(recipeData)});
+    `);
+
+    // Hiển thị hộp thoại lưu file
+    const { filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: "Lưu công thức PDF",
+      defaultPath: `${recipeData.name.replace(/[^a-zA-Z0-9 ]/g, "")}_${new Date().toISOString().slice(0, 10)}.pdf`,
+      filters: [{ name: "PDF Files", extensions: ["pdf"] }],
+    });
+
+    if (filePath) {
+      const pdfBuffer = await pdfWindow.webContents.printToPDF({
+        printBackground: true,
+        landscape: false, // Chế độ dọc
+        pageSize: "A4",
+        margins: {
+          top: 0, // Đặt margins = 0 trong core để tránh lỗi margins > pageSize
+          // Lề thực tế sẽ được điều chỉnh bằng CSS trong file template HTML
+          bottom: 0,
+          left: 0,
+          right: 0,
+        },
+      });
+      fs.writeFileSync(filePath, pdfBuffer);
+      return { success: true, path: filePath };
+    }
+    return { success: false };
+  } catch (error) {
+    log.error("Lỗi xuất PDF công thức:", error);
+    throw error;
+  } finally {
+    // Đảm bảo cửa sổ ẩn luôn được đóng ngay cả khi có lỗi xảy ra
+    if (pdfWindow && !pdfWindow.isDestroyed()) {
+      pdfWindow.destroy();
+    }
+  }
+});
+
+// IPC xử lý xóa file ảnh công thức
+ipcMain.handle("delete-recipe-image-file", async (event, filePath) => {
+  if (!filePath) return { success: false, message: "Đường dẫn file rỗng." };
+
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      log.info(`Đã xóa file ảnh: ${filePath}`);
+      return { success: true };
+    }
+    return { success: false, message: "File không tồn tại." };
+  } catch (error) {
+    log.error(`Lỗi khi xóa file ảnh ${filePath}:`, error);
+    return { success: false, message: error.message };
+  }
+});
+
+// IPC xử lý lưu file ảnh công thức
+ipcMain.handle("save-recipe-image", async (event, tempImagePath) => {
+  if (!tempImagePath || tempImagePath.includes("fakepath")) {
+    log.error("Lưu ảnh thất bại: Đường dẫn không hợp lệ hoặc bị fakepath.");
+    return null;
+  }
+
+  try {
+    const appDataPath = app.getPath("userData");
+    const recipeImagesDir = path.join(appDataPath, "recipe_images");
+
+    if (!fs.existsSync(recipeImagesDir)) {
+      fs.mkdirSync(recipeImagesDir, { recursive: true });
+    }
+
+    // Làm sạch tên file để tránh lỗi kí tự đặc biệt trên Windows
+    const safeFileName = path
+      .basename(tempImagePath)
+      .replace(/[^a-zA-Z0-9.-]/g, "_");
+    const fileName = `${Date.now()}_${safeFileName}`;
+    const destPath = path.join(recipeImagesDir, fileName);
+
+    if (!fs.existsSync(tempImagePath))
+      throw new Error("Tệp nguồn không tồn tại.");
+
+    fs.copyFileSync(tempImagePath, destPath);
+    log.info(`Đã lưu ảnh công thức: ${destPath}`);
+    return destPath; // Trả về đường dẫn mới
+  } catch (error) {
+    log.error("Lỗi khi lưu ảnh công thức:", error);
+    return null;
+  }
 });
 
 app.on("window-all-closed", () => {

@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
   // Lắng nghe sự kiện từ Main Process (dùng cho sendStatusToUI trong database.js)
@@ -26,7 +26,31 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Lấy phiên bản ứng dụng
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
 
+  // Lấy đường dẫn tệp an toàn (Electron 28+)
+  getPathForFile: (file) => {
+    if (!file) return null;
+    // webUtils.getPathForFile là cách chuẩn cho Electron hiện đại
+    if (webUtils && typeof webUtils.getPathForFile === "function") {
+      return webUtils.getPathForFile(file);
+    }
+    return file.path; // Fallback cho các bản Electron cũ hơn
+  },
+
   // Các hàm gửi yêu cầu từ Renderer lên Main (Database query/execute)
   db_query: (sql, params) => ipcRenderer.invoke("db-query", sql, params),
   db_execute: (sql, params) => ipcRenderer.invoke("db-execute", sql, params),
+
+  // Xuất Excel
+  exportStatsExcel: (payload) =>
+    ipcRenderer.invoke("export-statistics-excel", payload),
+
+  // Lưu ảnh công thức
+  saveRecipeImage: (path) => ipcRenderer.invoke("save-recipe-image", path),
+
+  // Xuất PDF công thức
+  exportRecipePdf: (data) => ipcRenderer.invoke("export-recipe-pdf", data),
+
+  // Xóa ảnh công thức
+  deleteRecipeImageFile: (filePath) =>
+    ipcRenderer.invoke("delete-recipe-image-file", filePath),
 });

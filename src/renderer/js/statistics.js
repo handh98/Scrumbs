@@ -1,21 +1,27 @@
 (function () {
   const API = window.electronAPI;
 
+  window.currentStatsData = null; // Lưu trữ dữ liệu để xuất Excel
+
   window.loadStatistics = async () => {
     window.toggleLoader(true);
     try {
-      // 1. Thiết lập ngày mặc định (đầu tháng đến cuối tháng) nếu chưa chọn
-      const startInput = $("stats-start-date");
-      const endInput = $("stats-end-date");
+      // 1. Thiết lập tháng mặc định nếu chưa chọn
+      const monthPicker = $("stats-month-picker");
       const now = new Date();
+      const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-      if (!startInput.value) {
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-        startInput.value = firstDay.toISOString().split("T")[0];
+      if (monthPicker && !monthPicker.value) {
+        monthPicker.value = currentMonthStr;
       }
-      if (!endInput.value) {
-        endInput.value = now.toISOString().split("T")[0];
-      }
+
+      const selectedMonth = monthPicker?.value || currentMonthStr;
+      const [year, month] = selectedMonth.split("-");
+
+      // Xác định ngày bắt đầu và kết thúc của tháng đã chọn
+      const startDate = `${selectedMonth}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const endDate = `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
 
       // 2. Truy vấn đơn hàng trong khoảng ngày
       const sql = `
@@ -26,10 +32,7 @@
         AND o.delivery_date BETWEEN ? AND ?
         ORDER BY o.delivery_date DESC
       `;
-      const orders = await API.db_query(sql, [
-        startInput.value,
-        endInput.value,
-      ]);
+      const orders = await API.db_query(sql, [startDate, endDate]);
 
       // 3. Truy vấn bảng giá vốn hiện tại từ Menu để tính toán lợi nhuận
       // (Vì items_json lưu giá bán, chúng ta cần so khớp để lấy giá vốn hiện tại)
@@ -67,17 +70,18 @@
       const productSales = {};
       const dailyData = {};
 
-      // Khởi tạo dailyData với 0 cho tất cả các ngày trong khoảng chọn
-      const [sY, sM, sD] = startInput.value.split("-").map(Number);
-      const [eY, eM, eD] = endInput.value.split("-").map(Number);
-      let dPtr = new Date(sY, sM - 1, sD);
-      const endD = new Date(eY, eM - 1, eD);
+      // Khởi tạo dailyData với 0 cho tất cả các ngày trong tháng
+      let dPtr = new Date(year, month - 1, 1);
+      const endD = new Date(year, month - 1, lastDay);
 
       while (dPtr <= endD) {
         const ds = `${dPtr.getFullYear()}-${String(dPtr.getMonth() + 1).padStart(2, "0")}-${String(dPtr.getDate()).padStart(2, "0")}`;
         dailyData[ds] = { revenue: 0, cost: 0 };
         dPtr.setDate(dPtr.getDate() + 1);
       }
+
+      // Chuẩn bị dữ liệu cho Excel (Sheet 1)
+      const excelOrders = [];
 
       const orderRowsHtml = orders
         .map((order) => {
@@ -111,6 +115,16 @@
 
           totalEstimatedCost += orderCost;
           const profit = order.total_amount - orderCost;
+
+          // Đẩy vào mảng Excel với tiêu đề tiếng Việt
+          excelOrders.push({
+            "Mã đơn": `#${order.id}`,
+            "Ngày giao": order.delivery_date,
+            "Khách hàng": order.cust_name || "Khách vãng lai",
+            "Doanh thu (đ)": order.total_amount,
+            "Vốn ước tính (đ)": Math.round(orderCost),
+            "Lợi nhuận (đ)": Math.round(profit),
+          });
 
           return `
           <tr>
@@ -151,6 +165,16 @@
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
 
+      // Lưu lại để dùng cho export
+      window.currentStatsData = {
+        orders: excelOrders,
+        products: sortedProducts.map((p) => ({
+          "Tên sản phẩm": p[0],
+          "Số lượng bán": p[1],
+        })),
+        month: selectedMonth,
+      };
+
       $("stats-top-products").innerHTML =
         sortedProducts
           .map(
@@ -170,6 +194,30 @@
       window.showToast?.("Không thể nạp dữ liệu thống kê", "error");
     } finally {
       window.toggleLoader(false);
+    }
+  };
+
+  window.exportStatisticsToExcel = async () => {
+    if (
+      !window.currentStatsData ||
+      window.currentStatsData.orders.length === 0
+    ) {
+      return window.showToast?.("Không có dữ liệu để xuất báo cáo!", "warning");
+    }
+
+    try {
+      const fileName = `Bao_cao_doanh_thu_${window.currentStatsData.month}.xlsx`;
+      const result = await API.exportStatsExcel({
+        orders: window.currentStatsData.orders,
+        products: window.currentStatsData.products,
+        fileName,
+      });
+
+      if (result.success) {
+        window.showToast?.("Xuất báo cáo Excel thành công!", "success");
+      }
+    } catch (error) {
+      window.showToast?.("Lỗi khi xuất file Excel", "error");
     }
   };
 
