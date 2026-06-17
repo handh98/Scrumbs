@@ -1,73 +1,39 @@
 /* Container chung */
 .knowledge-page-container {
-  padding: 10px 5px;
+  padding: var(--space-sm) var(--space-xs);
 }
 
 /* Utilities (thay thế cho inline styles) */
-.me-8 {
-  margin-right: 8px;
-}
-.mb-5 {
-  margin-bottom: 5px;
+.mb-xs {
+  margin-bottom: var(--space-xs);
   display: inline-block;
-}
-.mt-15 {
-  margin-top: 15px;
-}
-.flex-1 {
-  flex: 1;
-}
-.flex-2 {
-  flex: 2;
-}
-.form-row {
-  display: flex;
-  gap: 15px;
 }
 .action-group {
   display: flex;
   gap: 8px;
 }
-.footer-between {
-  justify-content: space-between;
-  align-items: center;
-}
 
 /* Thanh bộ lọc danh mục */
-.category-filter-bar {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+#knowledge-cat-filters {
   flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
 }
 
-.filter-tag {
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.2s ease;
-}
-
-.filter-tag.active {
-  box-shadow: 0 0 0 2px var(--text-chocolate, #5d4037);
-  font-weight: bold;
-}
+/* Hiệu ứng active sẽ giống hệt tab Recipes thông qua việc áp dụng style tương tự .tab-btn.active */
 
 /* Hệ thống lưới Blog Grid */
 .knowledge-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .knowledge-card {
-  background: #fffdfb;
+  background: var(--bg-step-view);
   border-radius: 14px;
-  border: 1px solid #f3ece6;
+  border: 1px solid var(--border-step-view);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -85,17 +51,17 @@
 }
 
 .knowledge-card h3 {
-  margin: 10px 0 6px 0;
-  color: var(--text-chocolate, #4e342e);
-  font-size: 17px;
-  line-height: 1.4;
+  margin: var(--space-sm) 0 6px 0;
+  color: var(--color-primary-text);
+  font-size: var(--font-size-xl); /* 17px ~ 16px (xl) hoặc 18px (h3) */
+  line-height: var(--line-height-snug);
 }
 
 .knowledge-card p {
   margin: 0;
-  color: var(--text-note, #7d665a);
-  font-size: 13px;
-  line-height: 1.5;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -103,55 +69,45 @@
 }
 
 .card-footer {
-  margin-top: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 1px dashed #f3ece6;
-  padding-top: 10px;
-}
-
-.badge {
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: bold;
+  margin-top: var(--space-md);
+  border-top: 1px dashed var(--neutral-400);
+  padding-top: var(--space-sm);
 }
 
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
   padding: 50px;
-  color: var(--text-muted, #bcaaa4);
+  color: var(--color-text-muted); /* Giữ nguyên vì đã dùng biến màu */
   font-style: italic;
 }
 
 /* Đường dẫn liên kết nội bộ kiểu Wikipedia */
 .wiki-link {
-  color: #bc5a1a;
+  color: var(--primary-orange);
   font-weight: 600;
   text-decoration: none;
-  border-bottom: 1px dashed #bc5a1a;
+  border-bottom: 1px dashed var(--primary-orange);
   padding: 0 2px;
   transition: all 0.2s;
 }
 
 .wiki-link:hover {
-  background-color: #ffe9db;
+  background-color: var(--bg-wiki-hover);
   border-bottom-style: solid;
   border-radius: 4px;
 }
 
 /* Modal Form Styles */
 .label-bold {
-  font-weight: bold;
-  color: var(--text-chocolate, #5d4037);
+  font-weight: bold; /* Giữ nguyên vì đã có biến font-weight-bold */
+  color: var(--color-primary-text);
 }
 
 .help-text {
-  font-size: 12px;
-  color: var(--text-note, #8d6e63);
-  margin-bottom: 5px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-xs);
 }
 
 .tall-textarea {
@@ -163,10 +119,10 @@
   display: flex;
   gap: 10px;
   align-items: flex-end;
-  background: #fdfaf7;
-  padding: 15px;
+  background: var(--neutral-150);
+  padding: var(--space-md);
   border-radius: 8px;
-  border: 1px solid #f3ece6;
+  border: 1px solid var(--neutral-300);
 }
 
 .color-picker-input {
@@ -179,7 +135,7 @@
 }
 
 .cat-table-wrap {
-  margin-top: 15px;
+  margin-top: var(--space-md);
   max-height: 300px;
   overflow-y: auto;
 }
@@ -196,20 +152,20 @@
 }
 
 .read-body {
-  background-color: #fcfbfa;
+  background-color: var(--neutral-150);
   border-radius: 8px;
-  padding: 20px !important;
-  border: 1px solid #f5ebe2;
+  padding: var(--space-lg) !important;
+  border: 1px solid var(--neutral-300);
 }
 
 .article-content {
-  font-size: 15px;
-  line-height: 1.7;
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-relaxed);
   color: #3e2723;
   white-space: pre-line;
 }
 
 .date-text {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: #999;
 }

@@ -2,6 +2,9 @@
 window.$ = (id) => document.getElementById(id);
 window.$$ = (sel) => document.querySelectorAll(sel);
 
+/** @type {boolean} Trạng thái cập nhật ngầm */
+window.isUpdateModalDismissed = false;
+
 window.loadCSS = (filename) => {
   const id = `css-${filename.replace(".", "-")}`;
   if (!$(id)) {
@@ -15,6 +18,11 @@ window.loadCSS = (filename) => {
   }
 };
 
+/**
+ * Dynamically loads an HTML component and its CSS.
+ * @param {string} name - Component name.
+ * @returns {Promise<boolean>} Success status.
+ */
 window.loadComponent = async (name) => {
   window.loadCSS(`${name}.css`);
   const componentId = `${name}-wrapper`;
@@ -26,6 +34,8 @@ window.loadComponent = async (name) => {
 
     const wrapper = document.createElement("div");
     wrapper.id = componentId;
+    // Giải pháp triệt để: Mọi wrapper của component đều không được chặn click
+    wrapper.style.pointerEvents = "none";
     wrapper.innerHTML = await response.text();
     document.body.appendChild(wrapper);
     return true;
@@ -35,6 +45,13 @@ window.loadComponent = async (name) => {
   }
 };
 
+/**
+ * Displays a customized confirmation modal.
+ * @param {string} title
+ * @param {string} message
+ * @param {Object} [options={}] - Custom icon, button text, progress bar etc.
+ * @returns {Promise<boolean|string>} User decision.
+ */
 window.showConfirm = async (title, message, options = {}) => {
   await window.loadComponent("confirm-modal");
   return new Promise((resolve) => {
@@ -44,7 +61,6 @@ window.showConfirm = async (title, message, options = {}) => {
     if (modal.querySelector("#confirm-modal-message"))
       modal.querySelector("#confirm-modal-message").innerText = message;
 
-    // Hỗ trợ hiển thị icon nếu có (ví dụ: emoji hoặc SVG)
     const iconEl = modal.querySelector("#confirm-modal-icon");
     if (iconEl) iconEl.innerHTML = options.icon || "❓";
 
@@ -64,7 +80,8 @@ window.showConfirm = async (title, message, options = {}) => {
     if (progressWrapper)
       progressWrapper.style.display = options.showProgress ? "block" : "none";
 
-    modal.style.display = "flex";
+    modal.classList.add("flex"); //
+    modal.style.pointerEvents = "auto"; // Chỉ chặn click khi modal thực sự hiện lên
 
     if (confirmBtn) {
       confirmBtn.classList.remove("btn-loading");
@@ -75,26 +92,65 @@ window.showConfirm = async (title, message, options = {}) => {
           confirmBtn.disabled = true;
           if (cancelBtn) cancelBtn.style.display = "none";
         } else {
-          modal.style.display = "none";
+          modal.classList.remove("flex");
+          modal.style.pointerEvents = "none"; // Giải phóng khi đóng modal
         }
         resolve(true);
       };
     }
     if (cancelBtn) cancelBtn.style.display = "inline-block";
     cancelBtn.onclick = () => {
-      modal.style.display = "none";
+      modal.classList.remove("flex");
+      modal.style.pointerEvents = "none";
       resolve(false);
     };
 
     if (bgBtn) {
       bgBtn.onclick = () => {
-        modal.style.display = "none";
+        modal.classList.remove("flex");
+        modal.style.pointerEvents = "none";
         resolve("background");
       };
     }
   });
 };
 
+window.showPrompt = (title, message, defaultValue = "") => {
+  return new Promise((resolve) => {
+    const modal = document.createElement("div");
+    modal.className = "confirm-modal-overlay";
+    modal.classList.add("flex");
+    modal.innerHTML = `
+      <div class="confirm-modal-card fade-in"> //
+        <h4 class="mb-xs" style="color: var(--color-primary-text);">${title}</h4>
+        <p>${message}</p>
+        <textarea class="prompt-input" rows="3">${defaultValue}</textarea>
+        <div class="confirm-modal-actions">
+          <button class="btn-secondary btn-cancel">Hủy</button>
+          <button class="btn-primary btn-ok">Lưu</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    const input = modal.querySelector(".prompt-input");
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+    modal.querySelector(".btn-ok").onclick = () => {
+      resolve(input.value);
+      modal.remove();
+    };
+    modal.querySelector(".btn-cancel").onclick = () => {
+      resolve(null);
+      modal.remove();
+    };
+  });
+};
+
+/**
+ * Updates the progress bar within an open confirmation modal.
+ * @param {number} percent
+ * @param {string} message
+ */
 window.updateConfirmProgress = (percent, message) => {
   const bar = $("confirm-modal-progress-bar");
   const text = $("confirm-modal-progress-text");
@@ -104,12 +160,29 @@ window.updateConfirmProgress = (percent, message) => {
   if (text && message) text.innerText = message;
 };
 
+/**
+ * Displays a temporary toast notification.
+ * @param {string} msg
+ * @param {string} [type='success'] - success, error, warning.
+ */
 window.showToast = async (msg, type = "success") => {
   await window.loadComponent("toast");
+
+  // Đảm bảo wrapper và container không chặn tương tác chuột của các phần tử bên dưới
+  const wrapper = $("toast-wrapper");
+  if (wrapper) wrapper.style.pointerEvents = "none";
+
   const container = $("toast-container");
+  if (container) container.style.pointerEvents = "none";
+
   const toast = document.createElement("div");
   toast.className = `toast toast-${type} fade-in`;
-  toast.innerHTML = `<span>${{ success: "✅", error: "❌", warning: "⚠️" }[type]}</span> ${msg}`;
+  // Chỉ cho phép tương tác chuột trên chính thẻ thông báo (ví dụ để tắt hoặc hover)
+  toast.style.pointerEvents = "auto";
+
+  const icon =
+    { success: "✅", error: "❌", warning: "⚠️", info: "ℹ️" }[type] || "🔔";
+  toast.innerHTML = `<span>${icon}</span> ${msg}`;
 
   container.appendChild(toast);
   setTimeout(() => {
@@ -118,10 +191,35 @@ window.showToast = async (msg, type = "success") => {
   }, 3000);
 };
 
+// Thêm biến đếm để xử lý các lời gọi showLoader lồng nhau
+let loaderCount = 0;
+
 window.showLoader = async (show) => {
-  if (show) await window.loadComponent("loader");
-  const loader = $("app-loader");
-  if (loader) loader.style.display = show ? "flex" : "none";
+  let loader = $("app-loader");
+  if (!loader) {
+    // Nếu loader chưa có trong DOM, nạp component và thử tìm lại
+    if (show) await window.loadComponent("loader");
+    loader = $("app-loader");
+    if (!loader) {
+      console.warn("Loader element 'app-loader' not found.");
+      return;
+    }
+  }
+
+  if (show) {
+    loaderCount++;
+    loader.classList.add("flex");
+    loader.classList.remove("hidden");
+    loader.style.pointerEvents = "auto"; // Đảm bảo chặn tương tác khi loader hiện
+  } else {
+    loaderCount = Math.max(0, loaderCount - 1); // Giảm số đếm, không âm
+    if (loaderCount === 0) {
+      // Chỉ ẩn loader khi không còn lời gọi nào yêu cầu hiển thị
+      loader.classList.remove("flex");
+      loader.classList.add("hidden");
+      loader.style.pointerEvents = "none"; // Quan trọng: Giải phóng tương tác khi loader ẩn
+    }
+  }
 };
 
 // --- Utilities Phân trang ---
@@ -175,7 +273,7 @@ window.TooltipComponent = {
       tooltip.innerText = content;
       tooltip.classList.add("show");
       tooltip.style.top = `${e.clientY - tooltip.offsetHeight - 15}px`;
-      tooltip.style.left = `${e.clientX}px`;
+      tooltip.style.left = `${e.clientX + 10}px`;
     });
 
     document.addEventListener("mouseout", (e) => {
@@ -223,6 +321,12 @@ window.removeAccents = (str) => {
   return result;
 };
 
+/**
+ * Wraps matching text segments with a <mark> tag for search highlighting.
+ * @param {string} text
+ * @param {string} query
+ * @returns {string} HTML string with highlights.
+ */
 window.highlightMatch = (text, query) => {
   if (!query || !text) return text;
   const cleanText = window.removeAccents(text);
@@ -258,7 +362,7 @@ window.formatInputOnType = (inputElement) => {
     return;
   }
 
-  let formattedValue = "";
+  let formattedValue;
   if (rawValue.includes(".")) {
     const [integerPart, decimalPart] = rawValue.split(".");
     const formattedInt = integerPart
@@ -271,16 +375,15 @@ window.formatInputOnType = (inputElement) => {
 
   inputElement.value = formattedValue;
 
-  // Tính toán lại vị trí chuột
   let newLength = formattedValue.length;
   cursorPosition = cursorPosition + (newLength - originalLength);
   inputElement.setSelectionRange(cursorPosition, cursorPosition);
 };
 
 /**
- * Xóa cache của một module và nạp lại dữ liệu
- * @param {string} sourceKey - Tên biến cache trên window
- * @param {function} reloadFunc - Hàm load lại dữ liệu
+ * Clears a specific window-level cache and optionally reloads the data.
+ * @param {string} sourceKey - Window property key.
+ * @param {Function} [reloadFunc] - Async function to refresh data.
  */
 window.invalidateAndReload = async (sourceKey, reloadFunc) => {
   window[sourceKey] = null;
@@ -288,3 +391,105 @@ window.invalidateAndReload = async (sourceKey, reloadFunc) => {
     await reloadFunc();
   }
 };
+
+// ==========================================
+// --- APP CORE & INITIALIZATION ---
+// ==========================================
+
+async function setupGlobalUI() {
+  try {
+    const version = await window.electronAPI.getAppVersion();
+    document.title = `Crumbs - v${version}`;
+
+    window.loadCSS("global.css");
+    await window.loadComponent("tooltip");
+    if (typeof window.TooltipComponent !== "undefined")
+      window.TooltipComponent.init();
+
+    // Lắng nghe trạng thái Database (Migration)
+    window.electronAPI.onMigrationUpdate?.((data) => {
+      if (data.type === "loading") window.showLoader(true);
+      if (data.type === "success") window.showLoader(false);
+      window.showToast(
+        data.message,
+        data.type === "loading" ? "info" : data.type,
+      );
+    });
+
+    // Lắng nghe Update ứng dụng
+    window.electronAPI.onUpdateMessage?.((data) => {
+      if (data.type === "downloading")
+        return toggleUpdateIndicator(true, data.percent);
+      if (data.type === "error") {
+        window.showLoader(false);
+        toggleUpdateIndicator(false);
+        if (window.isUpdateModalDismissed) {
+          window
+            .showConfirm(
+              "Lỗi cập nhật ⚠️", // Icon đã được xử lý trong showConfirm
+              "Quá trình tải bản cập nhật bị gián đoạn. Kiểm tra kết nối mạng?",
+            )
+            .then((c) => {
+              if (c === false) window.electronAPI.openLogsFolder();
+            });
+        }
+        window.isUpdateModalDismissed = false;
+      }
+      if (data.type === "downloaded") {
+        toggleUpdateIndicator(false);
+        window
+          .showConfirm(
+            "Sẵn sàng nâng cấp! ✨", // Icon đã được xử lý trong showConfirm
+            "Phiên bản mới đã tải xong. Cập nhật ngay?",
+            { confirmText: "Cập nhật", showLoadingOnConfirm: true },
+          )
+          .then((c) => c && window.electronAPI.installUpdate());
+      } else {
+        window.showToast(
+          data.message,
+          data.type === "loading" ? "info" : data.type,
+        );
+      }
+    });
+  } catch (err) {
+    console.error("Lỗi khởi tạo UI:", err);
+  }
+}
+
+function toggleUpdateIndicator(show, percent = 0) {
+  let indicator = $("bg-update-indicator");
+  if (show) {
+    if (!indicator) {
+      indicator = document.createElement("div");
+      indicator.id = "bg-update-indicator";
+      indicator.className = "update-bg-badge";
+      indicator.innerHTML = `<div class="spinner-mini"></div><div class="update-progress-container"><div class="update-progress-fill"></div></div><span class="percent-text">0%</span>`;
+      indicator.onclick = () => {
+        //
+        window.isUpdateModalDismissed = false;
+        indicator.classList.add("hidden");
+        indicator.classList.remove("flex");
+      };
+      document.body.appendChild(indicator);
+    }
+    indicator.style.display = "flex";
+    const fill = indicator.querySelector(".update-progress-fill");
+    indicator.querySelector(".percent-text").innerText = `${percent}%`;
+    fill.style.width = `${percent}%`;
+    fill.classList.toggle("is-nearly-done", percent >= 90);
+  } else if (indicator) {
+    indicator.classList.add("hidden");
+    indicator.classList.remove("flex");
+  }
+}
+
+async function initApp() {
+  if (window.electronAPI?.db_query) {
+    await setupGlobalUI();
+    if (typeof navigate === "function") navigate("dashboard");
+  } else {
+    requestAnimationFrame(initApp);
+  }
+}
+
+initApp();

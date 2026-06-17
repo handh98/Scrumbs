@@ -4,7 +4,7 @@
   window.currentStatsData = null; // Lưu trữ dữ liệu để xuất Excel
 
   window.loadStatistics = async () => {
-    window.toggleLoader(true);
+    await window.showLoader(true);
     try {
       // 1. Thiết lập tháng mặc định nếu chưa chọn
       const monthPicker = $("stats-month-picker");
@@ -25,10 +25,10 @@
 
       // 2. Truy vấn đơn hàng trong khoảng ngày
       const sql = `
-        SELECT o.*, c.name as cust_name 
-        FROM orders o 
+        SELECT o.*, c.name as cust_name
+        FROM orders o
         LEFT JOIN customers c ON o.customer_id = c.id
-        WHERE o.status = 'completed' 
+        WHERE o.status = 'completed'
         AND o.delivery_date BETWEEN ? AND ?
         ORDER BY o.delivery_date DESC
       `;
@@ -37,10 +37,10 @@
       // 3. Truy vấn bảng giá vốn hiện tại từ Menu để tính toán lợi nhuận
       // (Vì items_json lưu giá bán, chúng ta cần so khớp để lấy giá vốn hiện tại)
       const menuCosts = await API.db_query(`
-        SELECT id, 
+        SELECT id,
           (
-            COALESCE((SELECT SUM(mr.ratio * (SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) / CAST(r.output AS REAL) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = mr.recipe_id)) FROM menu_recipes mr WHERE mr.menu_item_id = menu_items.id), 0) + 
-            COALESCE((SELECT SUM(mp.qty * i.unit_price) FROM menu_packaging mp JOIN ingredients i ON mp.ingredient_id = i.id WHERE mp.menu_item_id = menu_items.id), 0) + 
+            COALESCE((SELECT SUM(mr.ratio * (SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) / CAST(r.output AS REAL) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = mr.recipe_id)) FROM menu_recipes mr WHERE mr.menu_item_id = menu_items.id), 0) +
+            COALESCE((SELECT SUM(mp.qty * i.unit_price) FROM menu_packaging mp JOIN ingredients i ON mp.ingredient_id = i.id WHERE mp.menu_item_id = menu_items.id), 0) +
             COALESCE((SELECT SUM(mig.qty * i.unit_price) FROM menu_ingredients mig JOIN ingredients i ON mig.ingredient_id = i.id WHERE mig.menu_item_id = menu_items.id), 0) +
             electricity + depreciation + labor
           ) AS unit_cost
@@ -53,10 +53,10 @@
 
       // Lấy thêm giá vốn của các công thức nhân để tính toán chính xác
       const fillingCosts = await API.db_query(`
-        SELECT r.id, 
-               (SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) / CAST(r.output AS REAL) 
-                FROM recipe_ingredients ri 
-                JOIN ingredients i ON ri.ingredient_id = i.id 
+        SELECT r.id,
+               (SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) / CAST(r.output AS REAL)
+                FROM recipe_ingredients ri
+                JOIN ingredients i ON ri.ingredient_id = i.id
                 WHERE ri.recipe_id = r.id) AS cost
         FROM recipes r WHERE r.recipe_type = 'filling'
       `);
@@ -132,7 +132,7 @@
             <td>${order.delivery_date}</td>
             <td>${order.cust_name || "Khách vãng lai"}</td>
             <td class="text-right">${window.formatNumber(order.total_amount)}đ</td>
-            <td class="text-right" style="color: #999">${window.formatNumber(Math.round(orderCost))}đ</td>
+            <td class="text-right" style="color: var(--neutral-700)">${window.formatNumber(Math.round(orderCost))}đ</td>
             <td class="text-right font-weight-bold" style="color: ${profit >= 0 ? "var(--status-success-text)" : "var(--status-error-text)"}">
               ${window.formatNumber(Math.round(profit))}đ
             </td>
@@ -193,7 +193,7 @@
       console.error("Lỗi thống kê:", error);
       window.showToast?.("Không thể nạp dữ liệu thống kê", "error");
     } finally {
-      window.toggleLoader(false);
+      window.showLoader(false);
     }
   };
 
@@ -216,7 +216,7 @@
       if (result.success) {
         window.showToast?.("Xuất báo cáo Excel thành công!", "success");
       }
-    } catch (error) {
+    } catch {
       window.showToast?.("Lỗi khi xuất file Excel", "error");
     }
   };
@@ -275,14 +275,14 @@
     container.innerHTML = `
       <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
         <!-- Trục và lưới -->
-        <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#eee" stroke-width="1" />
-        <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="#eee" stroke-width="1" />
-        
+        <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="var(--neutral-400)" stroke-width="1" />
+        <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="var(--neutral-400)" stroke-width="1" />
+
         <!-- Đường doanh thu -->
         <path d="${revPath}" fill="none" stroke="#6366f1" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
         <!-- Đường lợi nhuận -->
         <path d="${profitPath}" fill="none" stroke="#10b981" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
-        
+
         ${labels}
         ${markers}
       </svg>

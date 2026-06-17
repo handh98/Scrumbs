@@ -1,0 +1,12 @@
+# Thư mục phụ thuộc
+node_modules/
+
+# Thư mục build và đóng gói của Electron
+dist/
+build/
+out/
+
+# File dữ liệu và cache
+.eslintcache
+*.db*
+src/renderer/assets/

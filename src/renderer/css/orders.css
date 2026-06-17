@@ -14,7 +14,7 @@
 }
 
 .order-total-cell {
-  color: var(--deep-pink);
+  color: var(--color-highlight-danger);
   font-weight: bold;
 }
 
@@ -22,94 +22,49 @@
 .autocomplete-wrapper {
   position: relative;
 }
+/* Các class autocomplete-dropdown và dropdown-item đã được quy hoạch vào global.css */
+
 .autocomplete-dropdown {
-  display: none;
   position: absolute;
   top: 100%;
   left: 0;
   width: 100%;
-  background: var(--white);
-  border: 1px solid var(--border-btn-sub);
-  border-radius: var(--radius-small);
+  background: var(--color-white);
+  border: 1px solid var(--color-border-button-secondary);
+  border-radius: var(--radius-sm);
   max-height: 180px;
   overflow-y: auto;
   z-index: 9999;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  margin-top: 4px;
-}
-.autocomplete-dropdown.show {
-  display: block;
-}
-.autocomplete-dropdown .dropdown-item {
-  padding: 10px 12px;
-  cursor: pointer;
-  font-size: 13.5px;
-  color: var(--text-chocolate);
-  border-bottom: 1px solid var(--border-row);
-  transition: background-color var(--transition-fast);
-}
-.autocomplete-dropdown .dropdown-item:last-child {
-  border-bottom: none;
-}
-.autocomplete-dropdown .dropdown-item:hover {
-  background-color: var(--pastel-pink-hover);
-}
-.autocomplete-dropdown .no-match {
-  color: var(--text-muted);
-  font-style: italic;
-  text-align: center;
-  cursor: default;
+  margin-top: var(--space-xs);
 }
 
 /* BIỂU MẪU ĐƠN HÀNG (MODAL) */
-#order-modal .form-row {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 15px;
-}
 #order-modal .row-item {
   flex: 1;
 }
 #order-modal .row-item-full {
   width: 100%;
 }
-.mt-10 {
-  margin-top: 10px;
-}
 
 #o-status {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: var(--radius-small);
-  border: 1px solid var(--border-soft);
-  outline: none;
-  background-color: var(--white);
-  color: var(--text-chocolate);
-  font-family: inherit;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-#o-status:focus {
-  border-color: var(--pastel-pink-bold);
+  /* Kế thừa các thuộc tính chung từ select global, chỉ cần chỉnh radius */
+  border-radius: var(--radius-sm);
 }
 
 .section-label-row {
-  margin-bottom: 10px;
+  margin-bottom: var(--space-sm);
 }
 .section-title {
   font-weight: bold;
-  color: var(--text-chocolate);
+  color: var(--color-primary-text);
 }
 
 .ingredient-picker-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 15px;
+  /* Giữ lại alignment đặc thù cho trang đơn hàng */
   align-items: flex-end;
-  background: #fdfdfd;
-  padding: 10px;
-  border-radius: var(--radius-small);
-  border: 1px solid #f1f1f1;
+  background: var(--neutral-150);
+  border: 1px solid var(--neutral-300);
 }
 
 .picker-col-name {
@@ -127,20 +82,16 @@
 
 .picker-label {
   display: block;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: bold;
   text-transform: uppercase;
-  color: var(--text-chocolate);
-  margin-bottom: 5px;
+  color: var(--color-primary-text);
+  margin-bottom: var(--space-xs);
   opacity: 0.8;
   white-space: nowrap;
 }
 
-.flex-05 {
-  flex: 0.5;
-}
 .btn-add-item {
-  padding: 8px 15px;
   white-space: nowrap;
 }
 
@@ -165,26 +116,20 @@
 }
 
 .item-filling-select {
-  width: 100%;
-  padding: 5px;
-  border: 1px solid var(--border-soft);
-  border-radius: 4px;
-  font-size: 13px;
-  color: var(--text-chocolate);
-  background-color: var(--white);
-  box-sizing: border-box;
+  padding: 4px 8px !important;
+  font-size: var(--font-size-sm) !important;
+  border-radius: var(--radius-sm) !important;
 }
 
 .item-qty-input {
+  padding: 4px 8px !important;
+  font-size: var(--font-size-sm) !important;
+  border-radius: var(--radius-sm) !important;
   width: 60px;
   text-align: center;
-  padding: 4px;
-  border: 1px solid var(--border-soft);
-  border-radius: 4px;
-  outline: none;
 }
 .item-qty-input:focus {
-  border-color: var(--pastel-pink-bold);
+  border-color: var(--color-button-primary-base);
 }
 .item-subtotal-text {
   font-weight: bold;
@@ -195,17 +140,16 @@
   width: 90%;
 }
 #order-modal .modal-footer {
-  display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--white);
-  border-top: 1px solid #f3ede2;
-  padding: 16px 24px;
+  background: var(--color-white);
+  border-top: 1px solid var(--neutral-300);
+  padding: var(--space-md) var(--space-xl); /* Đồng bộ với modal-footer trong global.css */
 }
 
 .total-summary-box {
-  font-size: 16px;
-  color: var(--deep-pink);
+  font-size: var(--font-size-xl);
+  color: var(--color-highlight-danger);
   font-weight: bold;
 }
 .modal-action-buttons {

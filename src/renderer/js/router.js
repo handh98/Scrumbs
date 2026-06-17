@@ -1,8 +1,7 @@
 // src/renderer/js/router.js
 
-async function navigate(pageId) {
+window.navigate = async function (pageId) {
   const renderContainer = $("page-render");
-  const bookFrame = $("book-frame");
 
   window.loadCSS(`${pageId}.css`);
 
@@ -33,7 +32,7 @@ async function navigate(pageId) {
     console.error(err);
     renderContainer.innerHTML = `<div style="color:red; padding:20px;">Lỗi tải trang: ${err.message}</div>`;
   }
-}
+};
 
 function initPageLogic(pageId) {
   const functionName = `load${pageId.charAt(0).toUpperCase() + pageId.slice(1)}`;

@@ -72,7 +72,7 @@
         <div class="picker-item" onclick="window.selectPickerOption('${type}', ${o.id}, '${o.name.replace(/'/g, "\\'")}', ${price}, '${unit}', this)">
             <div class="picker-item-main">
               <span class="picker-item-name">${o.name} ${typeBadge}</span>
-              <span class="picker-item-price">${displayPrice}</span>
+              <span class="picker-item-price" style="color: var(--color-highlight-danger);">${displayPrice}</span>
             </div>
         </div>`;
       })
@@ -94,7 +94,8 @@
       inputElem.value,
       type,
     );
-    container.querySelector(".picker-dropdown").style.display = "block";
+    container.querySelector(".picker-dropdown").classList.add("block");
+    container.querySelector(".picker-dropdown").classList.remove("hidden");
   };
 
   window.filterPicker = window.debounce((inputElem, type) => {
@@ -115,7 +116,8 @@
       inputElem.value,
       type,
     );
-    container.querySelector(".picker-dropdown").style.display = "block";
+    container.querySelector(".picker-dropdown").classList.add("block"); //
+    container.querySelector(".picker-dropdown").classList.remove("hidden"); //
   }, 300);
 
   window.hidePickerDelay = (inputElem) => {
@@ -123,7 +125,10 @@
       const dropdown = inputElem
         .closest(".picker-container")
         .querySelector(".picker-dropdown");
-      if (dropdown) dropdown.style.display = "none";
+      if (dropdown) {
+        dropdown.classList.add("hidden");
+        dropdown.classList.remove("block");
+      }
     }, 200);
   };
 
@@ -142,7 +147,9 @@
       row.querySelector(".unit-label").innerText = unit;
     }
 
-    container.querySelector(".picker-dropdown").style.display = "none";
+    container.querySelector(".picker-dropdown").classList.add("hidden"); //
+    container.querySelector(".picker-dropdown").classList.remove("block"); //
+
     window.calculateTotal();
   };
 
@@ -176,15 +183,15 @@
     div.className = "raw-row";
     div.innerHTML = `
         <div class="flex-2 picker-container">
-            <input type="text" class="picker-input" placeholder="🔍 Nhập nguyên liệu..." value="${found.name || ""}" 
+            <input type="text" class="picker-input" placeholder="🔍 Nhập nguyên liệu..." value="${found.name || ""}"
                    onfocus="window.showPicker(this, 'raw')" oninput="window.filterPicker(this, 'raw')" onblur="window.hidePickerDelay(this)" autocomplete="off" />
             <div class="picker-dropdown"></div>
             <input type="hidden" class="picker-id-hidden" value="${ingredientId}">
             <input type="hidden" class="picker-price-hidden" value="${found.unit_price || 0}">
         </div>
-        <div class="flex-1" style="display:flex; align-items:center;">
+        <div class="flex-1 flex items-center">
             <input class="raw-qty" type="number" placeholder="SL" value="${qty}" min="0.1" step="0.1" oninput="window.calculateTotal()" style="width:70%;">
-            <span class="unit-label" style="margin-left:8px; font-size:12px; color:#666;">${found.unit || "đv"}</span>
+            <span class="unit-label" style="margin-left:8px; font-size:12px; color:var(--neutral-850);">${found.unit || "đv"}</span>
         </div>
         <div class="col-action-wrap"><button type="button" class="btn-delete-row" onclick="this.closest('.raw-row').remove(); window.calculateTotal();">❌</button></div>`;
     const container = $("raw-ingredient-container");
@@ -197,7 +204,7 @@
     div.className = "pkg-row";
     div.innerHTML = `
         <div class="flex-2 picker-container">
-            <input type="text" class="picker-input" placeholder="🔍 Nhập bao bì..." value="${found.name || ""}" 
+            <input type="text" class="picker-input" placeholder="🔍 Nhập bao bì..." value="${found.name || ""}"
                    onfocus="window.showPicker(this, 'pkg')" oninput="window.filterPicker(this, 'pkg')" onblur="window.hidePickerDelay(this)" autocomplete="off" />
             <div class="picker-dropdown"></div>
             <input type="hidden" class="picker-id-hidden" value="${ingredientId}">
@@ -249,7 +256,7 @@
         <div class="flex-1">
           <input type="number" class="filling-qty" value="${qty}" min="0.1" step="0.1" placeholder="Tỉ lệ" title="Số lượng nhân cho món này">
         </div>
-        <div class="flex-1" style="display:flex; justify-content:center;">
+        <div class="flex-1 flex justify-center">
           <input type="radio" name="default-filling" class="is-default-radio" ${shouldCheck ? "checked" : ""}>
         </div>
         <div class="col-action-wrap"><button type="button" class="btn-delete-row" onclick="this.closest('.filling-row').remove(); window.updateFillingControlsState();">❌</button></div>`;
@@ -357,6 +364,7 @@
     const margin = window.unformatNumber($("m-margin").value);
     const note = $("m-note").value.trim();
 
+    await window.showLoader(true);
     try {
       window.menuSourceData = null; // Invalidate cache
 
@@ -492,11 +500,14 @@
           : "Lưu món mới thành công! 🎉",
         "success",
       );
-      window.closeMenuModal();
-      window.loadMenu();
     } catch (error) {
       console.error(error);
       window.showToast?.("Không thể lưu món ăn!", "error");
+    } finally {
+      await window.showLoader(false);
+      window.closeMenuModal();
+      window.loadMenu();
+      setTimeout(() => $("menu-search")?.focus(), 400); // Tăng lên 400ms
     }
   };
 
@@ -565,13 +576,6 @@
           const globalIndex =
             (window.currentPageMenu - 1) * itemsPerPage + index + 1;
           const note = item.note?.trim() || "...";
-          const baseCost =
-            item.total_recipe_cost +
-            item.total_pkg_cost +
-            item.total_raw_cost +
-            item.electricity +
-            item.depreciation +
-            item.labor;
           const sellingPrice = item.selling_price || 0; // Luôn lấy selling_price từ DB, nếu 0 thì hiển thị 0
           const margin = item.profit_margin || 0; // Lấy lợi nhuận trực tiếp từ DB
 
@@ -589,13 +593,13 @@
           }
 
           return `
-          <tr class="menu-item-row">
-            <td class="text-center menu-col-index">${globalIndex}</td>
-            <td class="text-center text-500 menu-col-name">${item.name}${fillingBadge}</td>
-            <td class="text-center text-highlight menu-col-price">${priceDisplay}</td>
-            <td class="text-center menu-col-margin">${margin.toFixed(2)}%</td>
-            <td class="text-center note-column has-tooltip menu-col-note" data-note="${note}">${note}</td>
-            <td class="text-center action-column menu-col-action">
+          <tr>
+            <td class="text-center">${globalIndex}</td>
+            <td class="text-center text-500">${item.name}${fillingBadge}</td>
+            <td class="text-center text-highlight">${priceDisplay}</td>
+            <td class="text-center">${margin.toFixed(2)}%</td>
+            <td class="text-center note-column has-tooltip" data-note="${note}">${note}</td>
+            <td class="text-center action-column">
               <button class="btn-secondary btn-edit" onclick="window.editMenu(${item.id})" title="Chỉnh sửa"><img src="src/renderer/assets/edit.svg" class="icon" /></button>
               <button class="btn-secondary btn-delete" onclick="window.deleteMenu(${item.id}, '${item.name.replace(/'/g, "\\'")}')" title="Xóa"><img src="src/renderer/assets/trash.svg" class="icon" /></button>
             </td>
@@ -622,18 +626,18 @@
 
   window.openMenuModal = async () => {
     window.recipeOptions = await API.db_query(
-      `SELECT 
-        r.id, 
-        r.name, 
-        r.recipe_type, 
-        COALESCE(r.total_cost / MAX(1, CAST(r.output AS REAL)), 0) AS unit_cost 
+      `SELECT
+        r.id,
+        r.name,
+        r.recipe_type,
+        COALESCE(r.total_cost / MAX(1, CAST(r.output AS REAL)), 0) AS unit_cost
       FROM recipes r WHERE r.is_active = 1 AND r.recipe_type != 'filling'`,
     );
     window.fillingOptions = await API.db_query(
-      `SELECT 
-        id, 
-        name, 
-        COALESCE(CEIL(total_cost / MAX(1.0, CAST(output AS REAL)) / 100.0) * 100, 0) AS unit_cost 
+      `SELECT
+        id,
+        name,
+        COALESCE(CEIL(total_cost / MAX(1.0, CAST(output AS REAL)) / 100.0) * 100, 0) AS unit_cost
       FROM recipes WHERE recipe_type = 'filling' AND is_active = 1`,
     );
 
@@ -672,7 +676,7 @@
     });
 
     const fHeader = document.querySelector(".fillings-header");
-    if (fHeader) fHeader.style.display = "none";
+    if (fHeader) fHeader.classList.add("hidden");
 
     ["m-elec", "m-depr", "m-labor", "m-margin", "m-final-price"].forEach(
       (id) => ($(id).value = 0),
@@ -680,7 +684,8 @@
     if ($("m-final-price")) $("m-final-price").value = "0";
     if ($("m-total-cost-display")) $("m-total-cost-display").innerText = "0";
 
-    modal.style.display = "flex";
+    // modal.style.display = "flex"; // Redundant with classList.add("flex")
+    modal.classList.add("flex");
     window.addRecipeRow();
   };
 
@@ -711,11 +716,6 @@
       $("m-elec").value = window.formatNumber(item.electricity || 0);
       $("m-depr").value = window.formatNumber(item.depreciation || 0);
       $("m-labor").value = window.formatNumber(item.labor || 0);
-
-      const baseCost =
-        item.total_recipe_cost + item.total_pkg_cost + item.total_raw_cost;
-      const totalCost =
-        baseCost + item.electricity + item.depreciation + item.labor;
 
       if ($("m-final-price"))
         $("m-final-price").value = window.formatNumber(
@@ -759,7 +759,7 @@
       );
 
       // Cập nhật trạng thái của nút "Thêm nhân bánh" và header
-      updateFillingControlsState();
+      window.updateFillingControlsState();
 
       window.calculateTotal();
       // Đè lại giá trị margin từ DB để khớp với bảng, tránh lệch do giá vật tư thay đổi
@@ -808,7 +808,9 @@
     }
   };
 
-  window.closeMenuModal = () => ($("menu-modal").style.display = "none");
+  window.closeMenuModal = () => {
+    $("menu-modal").classList.remove("flex");
+  };
 
   // Khởi tạo định dạng cho các ô nhập liệu số khi gõ
   function initMenuInputFormatters() {
@@ -889,8 +891,8 @@
       (f) => !allSelectedIds.includes(f.id),
     );
 
-    fillingsHeader.style.display =
-      currentFillingRows.length === 0 ? "none" : "flex";
+    fillingsHeader.classList.toggle("hidden", currentFillingRows.length === 0);
+    fillingsHeader.classList.toggle("flex", currentFillingRows.length !== 0);
 
     if (unselectedOptions.length === 0 && window.fillingOptions.length > 0) {
       addFillingBtn.disabled = true;

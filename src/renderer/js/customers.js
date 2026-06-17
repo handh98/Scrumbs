@@ -18,7 +18,7 @@
 
       // 🌟 ĐÃ SỬA: Chỉ COUNT những đơn có status = 'completed'
       const sql = `
-        SELECT c.*, 
+        SELECT c.*,
                COUNT(CASE WHEN o.status = 'completed' THEN o.id END) AS total_orders,
                COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount ELSE 0 END), 0) AS total_spent
         FROM customers c
@@ -95,7 +95,8 @@
 
       if (paginationContainer)
         paginationContainer.innerHTML = pagingResult.html;
-      if (typeof TooltipComponent !== "undefined") TooltipComponent.init();
+      if (typeof window.TooltipComponent !== "undefined")
+        window.TooltipComponent.init();
     } catch (error) {
       console.error("Lỗi nạp danh sách khách hàng:", error);
     }
@@ -128,11 +129,13 @@
         $("c-address").value = data[0].address || "";
       }
     }
-    modal.style.display = "flex";
+    modal.classList.add("flex");
   };
 
   window.closeCustomerModal = () => {
-    $("customer-modal").style.display = "none";
+    if ($("customer-modal")) {
+      $("customer-modal").classList.remove("flex");
+    }
   };
 
   window.saveCustomer = async () => {
@@ -185,6 +188,7 @@
       console.error("Lỗi kiểm tra trùng lặp:", err);
     }
 
+    await window.showLoader(true);
     if (mode === "edit") {
       await API.db_execute(
         "UPDATE customers SET name=?, phone=?, address=? WHERE id=?",
@@ -199,8 +203,13 @@
       window.showToast("Thêm khách hàng thành công!", "success");
     }
 
-    window.closeCustomerModal();
-    window.loadCustomers();
+    try {
+      window.closeCustomerModal();
+      await window.loadCustomers();
+    } finally {
+      window.showLoader(false);
+      setTimeout(() => $("customer-search")?.focus(), 400); // Tăng lên 400ms
+    }
   };
 
   window.deleteCustomer = async (id, name) => {

@@ -5,14 +5,12 @@ const {
   shell,
   dialog,
   protocol,
-  net,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { pathToFileURL, fileURLToPath } = require("url");
-const { setupDatabase } = require("./database/database");
+const { setupDatabase, dbManager } = require("./database/database.js");
 const { autoUpdater } = require("electron-updater");
-const { registerDatabaseIPC } = require("./ipc/databaseIPC");
+const { registerDatabaseIPC } = require("./ipc/databaseIPC.js");
 const log = require("electron-log");
 const ExcelJS = require("exceljs");
 
@@ -40,6 +38,7 @@ log.transports.file.maxSize = 5 * 1024 * 1024; // Giới hạn 5MB mỗi file lo
 log.info("--- Ứng dụng Crumbs đang khởi động ---");
 log.info(`Phiên bản: ${app.getVersion()}`);
 log.info(`Nền tảng: ${process.platform} (${process.arch})`);
+log.info(`Đường dẫn ứng dụng (app.getAppPath()): ${app.getAppPath()}`);
 log.info(`Đường dẫn DB: ${path.join(app.getPath("userData"), "bakery.db")}`);
 
 // --- Xử lý lỗi hệ thống để app không thoát đột ngột ---
@@ -88,6 +87,9 @@ function createSplashWindow() {
   splashWindow.loadFile(path.join(__dirname, "../renderer/pages/splash.html"));
 }
 
+/**
+ * Creates and initializes the main application window.
+ */
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -102,23 +104,25 @@ function createMainWindow() {
     },
   });
   mainWindow.maximize();
-  mainWindow.show();
   mainWindow.loadFile(path.join(__dirname, "..", "..", "index.html"));
 
-  // Chỉ hiện cửa sổ khi nội dung đã tải xong
   mainWindow.once("ready-to-show", () => {
     if (splashWindow) splashWindow.destroy();
-    // Bắt đầu kiểm tra cập nhật sau khi cửa sổ chính đã sẵn sàng
     if (app.isPackaged) {
-      // Chỉ kiểm tra cập nhật khi ứng dụng đã được đóng gói
       autoUpdater.checkForUpdatesAndNotify();
     }
     mainWindow.show();
   });
 }
 
+/**
+ * Sends auto-update status information to the renderer process.
+ * @param {string} text - The message text.
+ * @param {string} [type='info'] - Message category.
+ * @param {number|null} [percent=null] - Progress percentage.
+ */
 function sendUpdateStatusToRenderer(text, type = "info", percent = null) {
-  if (mainWindow) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("update-message", {
       message: text,
       type,
@@ -128,71 +132,135 @@ function sendUpdateStatusToRenderer(text, type = "info", percent = null) {
 }
 
 app.whenReady().then(async () => {
+  // IPC để lấy đường dẫn tuyệt đối đến một tài sản trong thư mục assets
+  ipcMain.handle("get-asset-path", (event, assetName) => {
+    // Sử dụng path.resolve để đảm bảo đường dẫn tuyệt đối chuẩn xác
+    const fullPath = path.join(
+      __dirname,
+      "..",
+      "renderer",
+      "assets",
+      assetName,
+    );
+
+    console.log(`[DEBUG IPC] Yêu cầu lấy asset: ${assetName}`);
+    console.log(`[DEBUG IPC] Đường dẫn tìm kiếm: ${fullPath}`);
+    console.log(
+      `[DEBUG IPC] Tình trạng file: ${fs.existsSync(fullPath) ? "ĐÃ TÌM THẤY ✅" : "KHÔNG TỒN TẠI ❌"}`,
+    );
+    return fullPath;
+  });
+
   await setupDatabase();
   registerDatabaseIPC();
-  cleanOldLogs(); // Chạy dọn dẹp log cũ khi khởi động
+  cleanOldLogs();
 
-  // Đăng ký protocol để load ảnh từ ổ đĩa (tránh lỗi bảo mật Not allowed to load local resource)
-  protocol.handle("app-img", (request) => {
+  protocol.handle("app-img", async (request) => {
     try {
-      // Bóc tách URL để lấy đường dẫn tệp tin thực tế
       const url = new URL(request.url);
+      // Giải mã các ký tự đặc biệt như %20 (khoảng trắng) trong đường dẫn
       let filePath = decodeURIComponent(url.pathname);
 
       if (process.platform === "win32") {
-        // Fix lỗi Chromium chuẩn hóa ổ đĩa trên Windows:
-        // Nếu URL có dạng app-img://c/path thì 'c' sẽ nằm ở host
+        // Trên Windows, pathname thường bắt đầu bằng /D:/... -> ta bỏ dấu / ở đầu
+        if (filePath.startsWith("/")) filePath = filePath.slice(1);
+
+        // Trường hợp ổ đĩa bị nhảy vào phần host (app-img://D:/...)
         if (url.host && /^[a-zA-Z]$/.test(url.host)) {
           filePath = url.host + ":" + filePath;
-        } else if (filePath.startsWith("/")) {
-          // Trường hợp pathname bắt đầu bằng /C:/...
-          filePath = filePath.slice(1);
         }
-        filePath = path.normalize(filePath);
-      } else {
-        filePath = path.normalize(filePath);
+
+        // Đảm bảo LUÔN có dấu \ sau ổ đĩa để tránh lỗi "drive-relative path" (D:Folder -> D:\Folder)
+        if (/^[a-zA-Z]:[^\\]/.test(filePath)) {
+          filePath = filePath.replace(/^([a-zA-Z]:)/, "$1\\");
+        }
       }
 
-      // Sử dụng net.fetch kết hợp pathToFileURL để hỗ trợ streaming và OneDrive
-      // Cách này giúp Chromium tự động quản lý Mime-type và kích thước tệp.
-      return net.fetch(pathToFileURL(filePath).toString());
+      filePath = path.normalize(filePath);
+
+      console.log(`[DEBUG Protocol] Đang nạp ảnh qua app-img: ${filePath}`);
+      const buffer = fs.readFileSync(filePath);
+
+      // Xác định Content-Type dựa trên phần mở rộng của file
+      let contentType = "application/octet-stream"; // Mặc định
+      const ext = path.extname(filePath).toLowerCase();
+      if (ext === ".png") {
+        contentType = "image/png";
+      } else if (ext === ".jpg" || ext === ".jpeg") {
+        contentType = "image/jpeg";
+      } else if (ext === ".gif") {
+        contentType = "image/gif";
+      } else if (ext === ".svg") {
+        contentType = "image/svg+xml";
+      }
+
+      return new Response(buffer, {
+        headers: { "Content-Type": contentType },
+      });
     } catch (err) {
-      log.error(`[app-img] Lỗi xử lý request ${request.url}:`, err);
+      console.error(`[app-img] Lỗi:`, err);
+      // Log chi tiết lỗi ENOENT để dễ debug hơn
+      if (err.code === "ENOENT") {
+        console.error(
+          `[app-img] Lỗi ENOENT: Không tìm thấy tệp tại đường dẫn: ${err.path}`,
+        );
+      }
       return new Response("Not Found", { status: 404 });
     }
   });
 
-  // --- Cấu hình và kiểm tra cập nhật tự động ---
-  autoUpdater.logger = log;
+  // IPC cho Sticky Notes
+  ipcMain.handle("get-sticky-notes", async () => {
+    return await dbManager.all("SELECT * FROM sticky_notes ORDER BY id DESC");
+  });
+  ipcMain.handle("save-sticky-note", async (event, { content, color }) => {
+    return await dbManager.run(
+      "INSERT INTO sticky_notes (content, color) VALUES (?, ?)",
+      [content, color],
+    );
+  });
+  ipcMain.handle("delete-sticky-note", async (event, id) => {
+    return await dbManager.run("DELETE FROM sticky_notes WHERE id = ?", [id]);
+  });
+  ipcMain.handle("update-sticky-note", async (event, { id, content }) => {
+    return await dbManager.run(
+      "UPDATE sticky_notes SET content = ? WHERE id = ?",
+      [content, id],
+    );
+  });
 
-  // Cấu hình tự động tải và cài đặt
+  autoUpdater.logger = log;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on("checking-for-update", () => {
     sendUpdateStatusToRenderer("Đang kiểm tra cập nhật mới...");
   });
-  autoUpdater.on("update-available", (info) => {
+  autoUpdater.on("update-available", () => {
     sendUpdateStatusToRenderer(
       "Có bản cập nhật mới! Đang tải xuống...",
       "info",
     );
   });
-  autoUpdater.on("update-not-available", (info) => {
+  autoUpdater.on("update-not-available", () => {
     sendUpdateStatusToRenderer("Bạn đang dùng phiên bản mới nhất.", "success");
   });
   autoUpdater.on("error", (err) => {
-    log.error("Lỗi Auto-Updater:", err); // Ghi log chi tiết lỗi vào file
     sendUpdateStatusToRenderer(`Lỗi cập nhật: ${err.message}`, "error");
   });
+  let lastPercent = -1;
   autoUpdater.on("download-progress", (progressObj) => {
-    sendUpdateStatusToRenderer(
-      `Đang tải: ${Math.round(progressObj.percent)}%`,
-      "downloading",
-      Math.round(progressObj.percent),
-    );
+    const percent = Math.round(progressObj.percent);
+    if (percent !== lastPercent) {
+      lastPercent = percent;
+      sendUpdateStatusToRenderer(
+        `Đang tải: ${percent}%`,
+        "downloading",
+        percent,
+      );
+    }
   });
-  autoUpdater.on("update-downloaded", (info) => {
+  autoUpdater.on("update-downloaded", () => {
     sendUpdateStatusToRenderer(
       "Bản cập nhật đã sẵn sàng. Bạn có muốn khởi động lại để cài đặt ngay không?",
       "downloaded",
@@ -203,7 +271,12 @@ app.whenReady().then(async () => {
   createMainWindow(); // Load dữ liệu ngầm
 });
 
-ipcMain.on("install-update", () => {
+// Trình xử lý lấy version ứng dụng
+ipcMain.handle("get-app-version", () => {
+  return app.getVersion();
+});
+
+ipcMain.handle("install-update", () => {
   autoUpdater.quitAndInstall();
 });
 
@@ -225,12 +298,10 @@ function cleanOldLogs() {
           mtime: fs.statSync(filePath).mtimeMs,
         };
       })
-      // Sắp xếp theo thời gian sửa đổi giảm dần (file mới nhất đứng đầu)
       .sort((a, b) => b.mtime - a.mtime);
 
     const maxFiles = 5;
     if (files.length > maxFiles) {
-      // Lấy các file từ vị trí thứ 6 trở đi để xóa
       files.slice(maxFiles).forEach((file) => {
         fs.unlinkSync(file.path);
         log.info(
@@ -256,7 +327,6 @@ ipcMain.handle(
     try {
       const workbook = new ExcelJS.Workbook();
 
-      // --- SHEET 1: CHI TIẾT DOANH THU ---
       const sheet1 = workbook.addWorksheet("Doanh Thu Chi Tiết");
       if (orders.length > 0) {
         const headerKeys = Object.keys(orders[0]);
@@ -267,7 +337,6 @@ ipcMain.handle(
         }));
         sheet1.addRows(orders);
 
-        // Định dạng tiêu đề cho Sheet 1
         const headerRow = sheet1.getRow(1);
         headerRow.font = {
           name: "Arial",
@@ -277,12 +346,11 @@ ipcMain.handle(
         headerRow.fill = {
           type: "pattern",
           pattern: "solid",
-          fgColor: { argb: "FF6366F1" }, // Màu Indigo (giống biểu đồ)
+          fgColor: { argb: "FF6366F1" },
         };
         headerRow.alignment = { vertical: "middle", horizontal: "center" };
       }
 
-      // --- SHEET 2: THỐNG KÊ SẢN PHẨM ---
       const sheet2 = workbook.addWorksheet("Thống Kê Sản Phẩm");
       if (products.length > 0) {
         const productKeys = Object.keys(products[0]);
@@ -293,18 +361,16 @@ ipcMain.handle(
         }));
         sheet2.addRows(products);
 
-        // Định dạng tiêu đề cho Sheet 2
         const headerRow2 = sheet2.getRow(1);
         headerRow2.font = { bold: true, color: { argb: "FFFFFFFF" } };
         headerRow2.fill = {
           type: "pattern",
           pattern: "solid",
-          fgColor: { argb: "FF10B981" }, // Màu Emerald xanh lá
+          fgColor: { argb: "FF10B981" },
         };
         headerRow2.alignment = { vertical: "middle", horizontal: "center" };
       }
 
-      // Hiển thị hộp thoại lưu file
       const { filePath } = await dialog.showSaveDialog({
         title: "Lưu báo cáo doanh thu",
         defaultPath: fileName,
@@ -335,18 +401,14 @@ ipcMain.handle("export-recipe-pdf", async (event, recipeData) => {
       },
     });
 
-    // Nạp HTML template cho PDF
-    // Dựa trên cấu trúc file hiện tại, file nằm cùng thư mục với main.js (src/main/)
     const pdfTemplatePath = path.join(__dirname, "recipe-pdf-template.html");
 
     await pdfWindow.loadFile(pdfTemplatePath);
 
-    // Gửi dữ liệu công thức vào template HTML
     await pdfWindow.webContents.executeJavaScript(`
       window.renderRecipePdf(${JSON.stringify(recipeData)});
     `);
 
-    // Hiển thị hộp thoại lưu file
     const { filePath } = await dialog.showSaveDialog(mainWindow, {
       title: "Lưu công thức PDF",
       defaultPath: `${recipeData.name.replace(/[^a-zA-Z0-9 ]/g, "")}_${new Date().toISOString().slice(0, 10)}.pdf`,
@@ -413,7 +475,6 @@ ipcMain.handle("save-recipe-image", async (event, tempImagePath) => {
       fs.mkdirSync(recipeImagesDir, { recursive: true });
     }
 
-    // Làm sạch tên file để tránh lỗi kí tự đặc biệt trên Windows
     const safeFileName = path
       .basename(tempImagePath)
       .replace(/[^a-zA-Z0-9.-]/g, "_");
@@ -425,10 +486,10 @@ ipcMain.handle("save-recipe-image", async (event, tempImagePath) => {
 
     fs.copyFileSync(tempImagePath, destPath);
     log.info(`Đã lưu ảnh công thức: ${destPath}`);
-    return destPath; // Trả về đường dẫn mới
+    return destPath;
   } catch (error) {
     log.error("Lỗi khi lưu ảnh công thức:", error);
-    return null;
+    throw new Error(`Không thể lưu ảnh: ${error.message}`, { cause: error });
   }
 });
 

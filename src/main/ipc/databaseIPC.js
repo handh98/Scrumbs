@@ -1,5 +1,5 @@
-const { ipcMain, app } = require("electron");
-const { query, run } = require("../database/database");
+const { ipcMain } = require("electron");
+const { query, run } = require("../database/database.js");
 
 /**
  * Đăng ký các trình xử lý IPC cho tương tác cơ sở dữ liệu
@@ -25,11 +25,6 @@ function registerDatabaseIPC() {
       console.error("❌ IPC [db-execute] Error:", error.message);
       throw error;
     }
-  });
-
-  // Handler lấy phiên bản ứng dụng từ package.json
-  ipcMain.handle("get-app-version", () => {
-    return app.getVersion();
   });
 }
 

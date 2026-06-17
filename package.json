@@ -1,6 +1,6 @@
 {
   "name": "crumbs-app",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "main": "src/main/main.js",
   "scripts": {
     "start": "chcp 65001 > nul && electron .",
@@ -8,7 +8,10 @@
     "clean": "rd /s /q node_modules && del package-lock.json",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "lint": "eslint src --cache --cache-location .eslintcache",
+    "lint:fix": "eslint src --fix --cache --cache-location .eslintcache",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -19,15 +22,27 @@
   "license": "ISC",
   "description": "Ứng dụng quản lý tiệm bánh - Ver 1",
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
+    "@eslint/js": "^10.0.1",
     "electron": "^33.0.0",
     "electron-builder": "^26.8.1",
-    "@electron/rebuild": "^4.0.4"
+    "eslint": "^9.21.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "globals": "^17.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.8.4"
   },
   "dependencies": {
     "electron-log": "^4.4.8",
     "electron-updater": "^6.8.9",
-    "sqlite3": "^5.1.7",
-    "exceljs": "^4.4.0"
+    "exceljs": "^4.4.0",
+    "sqlite3": "^5.1.7"
+  },
+  "lint-staged": {
+    "src/**/*.{js,cjs,mjs}": "eslint --fix",
+    "**/*.{html,css}": "prettier --write"
   },
   "build": {
     "appId": "com.tiembanh.app",

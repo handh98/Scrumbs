@@ -2,67 +2,74 @@
   const itemsPerPage = 5;
   const API = window.electronAPI;
 
-  // Khởi tạo state toàn cục (Global State) gọn gàng với toán tử ??=
-  window.currentRecipeId ??= null;
-  window.allRecipes ??= [];
-  window.currentPageRecipes ??= 1;
-  window.recipeKeyword ??= "";
-  window.cachedIngredients ??= [];
-  window.selectedPickerIng ??= null;
-  window.recipeIngredientsList ??= [];
-  window.pickerDisplayedCount ??= 20;
-  window.pickerFilteredList ??= [];
-  window.recipesSourceData ??= null;
-  window.currentViewedRecipe ??= null; // Lưu công thức đang xem để xuất PDF
-  window.activeRecipeTab ??= "all";
-  window.currentRecipeImageFile ??= null; // Lưu file ảnh tạm thời đã chọn
-  window.recipeOriginalOutput ??= 1;
-  window.recipeScaleFactor ??= 1;
+  // Quy hoạch State vào một đối tượng duy nhất để dễ quản lý và debug
+  window.recipeState = {
+    currentId: null,
+    allData: [],
+    currentPage: 1,
+    keyword: "",
+    cachedIngredients: [],
+    selectedPickerIng: null,
+    ingredientsList: [],
+    pickerDisplayedCount: 20,
+    pickerFilteredList: [],
+    activeTab: "all",
+    currentImageFile: null,
+    originalOutput: 1,
+    scaleFactor: 1,
+    currentModalMode: "view", // "view" | "edit" | "add"
+    currentViewedRecipe: null,
+  };
 
-  let currentModalMode = "view"; // "view" | "edit" | "add"
-
+  /**
+   * Quản lý trạng thái hiển thị các thành phần trong Modal dựa trên Mode
+   */
   function toggleInputStates() {
     const modal = $("recipe-modal");
     if (!modal) return;
 
-    const isView = currentModalMode === "view";
-
-    // Toggle CSS class
+    const isView = window.recipeState.currentModalMode === "view";
     modal.classList.toggle("view-mode", isView);
+
+    // Hiệu ứng mượt mà
+    const modalBody = modal.querySelector(".modal-body");
+    if (modalBody) {
+      modalBody.style.opacity = "0";
+      setTimeout(() => {
+        modalBody.style.opacity = "1";
+      }, 50);
+    }
 
     // Xử lý nút Toggle Mode
     const toggleBtn = $("btn-toggle-mode");
     if (toggleBtn) {
-      toggleBtn.style.display =
-        currentModalMode === "add" ? "none" : "inline-flex";
+      toggleBtn.classList.toggle(
+        "hidden",
+        window.recipeState.currentModalMode === "add",
+      );
+      toggleBtn.classList.toggle(
+        "inline-flex",
+        window.recipeState.currentModalMode !== "add",
+      );
       toggleBtn.innerHTML = isView ? "Chỉnh Sửa" : "Xem Chi Tiết";
     }
 
-    // Nút Lưu & Nút xuất PDF
     if ($("btn-save-recipe"))
       $("btn-save-recipe").style.display = isView ? "none" : "inline-flex";
-    if ($("export-pdf-btn"))
-      $("export-pdf-btn").style.display = isView ? "inline-flex" : "none";
+    if ($("export-pdf-btn")) {
+      $("export-pdf-btn").classList.toggle("inline-flex", isView);
+      $("export-pdf-btn").classList.toggle("hidden", !isView);
+    }
 
-    // Vùng chọn nguyên liệu (Picker) và các nút thêm bước
-    const pickerSection =
-      $("ing-picker-section") || document.querySelector(".ing-picker-section");
-    if (pickerSection) pickerSection.style.display = isView ? "none" : "block";
+    // Ẩn/hiện bộ chọn nguyên liệu và nút thêm bước
+    [$("ing-picker-section"), $("btn-add-step")].forEach((el) => {
+      if (el) {
+        el.classList.toggle("hidden", isView);
+        el.classList.toggle("inline-flex", !isView && el.id === "btn-add-step");
+        el.classList.toggle("block", !isView && el.id === "ing-picker-section");
+      }
+    });
 
-    const addStepBtn =
-      $("btn-add-step") || document.querySelector(".btn-add-step");
-    if (addStepBtn) addStepBtn.style.display = isView ? "none" : "inline-flex";
-
-    // Vùng upload ảnh: Ẩn input chọn file khi ở chế độ xem
-    if ($("recipe-image-upload"))
-      $("recipe-image-upload").style.display = isView ? "none" : "block";
-    if ($("btn-clear-image"))
-      $("btn-clear-image").style.display = isView ? "none" : "flex";
-
-    // Tên bánh
-    if ($("rec-name")) $("rec-name").disabled = isView;
-
-    // Các trường dữ liệu cơ bản cần check ẩn/hiện nếu rỗng
     ["rec-cook-time", "rec-output-text", "rec-note", "rec-type"].forEach(
       (id) => {
         const input = $(id);
@@ -72,9 +79,19 @@
           input.closest(".form-group") || input.closest(".note-group");
         if (!groupWrapper) return;
 
-        input.disabled = isView;
-        const isEmpty = !input.value?.trim() || input.value === "0";
-        groupWrapper.classList.toggle("hide-empty", isView && isEmpty);
+        if (isView && id === "rec-name") {
+          input.disabled = true;
+          input.style.pointerEvents = "none";
+          input.style.border = "none";
+          input.style.background = "transparent";
+          input.style.boxShadow = "none";
+          input.style.padding = "0";
+        } else {
+          input.disabled = isView && id !== "rec-output-text";
+          input.style.pointerEvents = "auto";
+          input.style.background = ""; // Reset style từ view-mode
+          input.style.padding = "";
+        }
       },
     );
 
@@ -85,7 +102,16 @@
   }
 
   async function loadRecipes() {
-    window.toggleLoader(true);
+    // Đảm bảo thanh tab hiển thị nằm ngang (flex-row) bằng cách áp dụng class utility từ global.css
+    const tabsBar =
+      $("recipe-tabs") || // Ưu tiên tìm theo ID nếu có
+      // Fallback tìm theo class nếu ID không tồn tại hoặc không được sử dụng
+      // (đảm bảo tìm được phần tử chứa các tab)
+      document.querySelector(".recipe-tabs-container") ||
+      document.querySelector(".recipe-tabs");
+    if (tabsBar) tabsBar.classList.add("tab-container");
+
+    await window.showLoader(true);
     try {
       const tbody = $("recipe-list-body");
       const paginationContainer = $("recipes-pagination");
@@ -94,10 +120,10 @@
       // Đồng bộ keyword từ UI để đảm bảo state luôn khớp với ô nhập liệu
       const searchInput = $("recipe-search");
       if (searchInput) {
-        window.recipeKeyword = searchInput.value.trim();
+        window.recipeState.keyword = searchInput.value.trim();
       }
 
-      const activeTab = window.activeRecipeTab || "all";
+      const activeTab = window.recipeState.activeTab || "all";
 
       // Lấy toàn bộ công thức đang hoạt động theo Tab
       // Việc lọc không dấu (accent-insensitive) sẽ thực hiện ở JS để đảm bảo mượt mà và chính xác
@@ -117,7 +143,7 @@
       const rawData = await API.db_query(sql, sqlParams);
 
       // Lọc không dấu trong JS (Giống trang Vật tư - Inventory giúp tìm "cot" ra "cốt")
-      const kw = window.removeAccents(window.recipeKeyword);
+      const kw = window.removeAccents(window.recipeState.keyword);
       const filteredData = rawData.filter((item) => {
         return (
           window.removeAccents(item.name).includes(kw) ||
@@ -135,14 +161,18 @@
       const pagingResult = window.getPagination(
         filteredData,
         itemsPerPage,
-        window.currentPageRecipes,
+        window.recipeState.currentPage,
         (newPage) => {
-          window.currentPageRecipes = newPage;
+          window.recipeState.currentPage = newPage;
           loadRecipes();
         },
       );
 
-      window.allRecipes = pagingResult.data;
+      // Lấy đường dẫn placeholder một lần duy nhất để dùng cho tất cả các hàng
+      const placeholderPath = await API.getAssetPath("placeholder.png");
+      const placeholderUrl = `app-img:///${placeholderPath.replace(/\\/g, "/")}`;
+
+      window.recipeState.allData = pagingResult.data;
 
       if (paginationContainer)
         paginationContainer.innerHTML = pagingResult.html;
@@ -150,23 +180,23 @@
       tbody.innerHTML = pagingResult.data
         .map((item, index) => {
           const stt =
-            (window.currentPageRecipes - 1) * itemsPerPage + index + 1;
+            (window.recipeState.currentPage - 1) * itemsPerPage + index + 1;
           const safeName = item.name.replace(/'/g, "\\'");
           const note = item.note?.trim() || "...";
 
           const imageDisplay = item.image_path
             ? `<img src="app-img:///${item.image_path.replace(/\\/g, "/")}" alt="${item.name}" class="recipe-thumb">`
-            : `<div class="recipe-thumb-placeholder"></div>`;
+            : `<img src="${placeholderUrl}" alt="No image" class="recipe-thumb">`;
 
           // Highlight tên bánh dựa trên từ khóa
-          const nameDisplay = window.recipeKeyword
-            ? window.highlightMatch(item.name, window.recipeKeyword)
+          const nameDisplay = window.recipeState.keyword
+            ? window.highlightMatch(item.name, window.recipeState.keyword)
             : item.name;
 
           // Logic hiển thị nguyên liệu khớp từ khóa
           let matchHtml = "";
-          if (window.recipeKeyword && item.ingredients) {
-            const kw = window.removeAccents(window.recipeKeyword);
+          if (window.recipeState.keyword && item.ingredients) {
+            const kw = window.removeAccents(window.recipeState.keyword);
             const matchedIngs = item.ingredients
               .split("|")
               .filter((name) => window.removeAccents(name).includes(kw));
@@ -181,7 +211,7 @@
           return `
           <tr>
             <td class="text-center">${stt}</td>
-            <td class="font-weight-bold" style="display: flex; align-items: center; gap: 10px;">${imageDisplay} <div>${nameDisplay}${matchHtml}</div></td>
+            <td class="font-weight-bold row-flex gap-sm">${imageDisplay} <div>${nameDisplay}${matchHtml}</div></td>
             <td class="text-center">${item.cook_time ? item.cook_time + " phút" : "---"}</td>
             <td class="text-center">${item.output || "1"}</td>
             <td class="text-danger font-weight-bold text-center">${window.formatNumber(Math.round(item.total_cost))} đ</td>
@@ -205,43 +235,43 @@
       console.error("Lỗi tải công thức:", error);
       window.showToast?.("Không thể tải danh sách công thức.", "error");
     } finally {
-      window.toggleLoader(false);
+      window.showLoader(false);
     }
   }
 
   const searchRecipes = window.debounce(() => {
     const searchVal = $("recipe-search")?.value.trim() || "";
-    window.recipeKeyword = searchVal;
-    window.currentPageRecipes = 1;
+    window.recipeState.keyword = searchVal;
+    window.recipeState.currentPage = 1;
     loadRecipes();
   }, 250);
 
   async function openRecipeModal(mode, recipeId = null) {
-    currentModalMode = mode || "view";
-    window.currentRecipeId = recipeId;
-    window.recipeScaleFactor = 1;
-    window.currentRecipeImageFile = null; // Reset ảnh đã chọn
+    window.recipeState.currentModalMode = mode || "view";
+    window.recipeState.currentId = recipeId;
+    window.recipeState.scaleFactor = 1;
+    window.recipeState.currentImageFile = null; // Reset ảnh đã chọn
+    window.recipeState.ingredientsList = [];
+    window.recipeState.currentViewedRecipe = null;
 
-    // Reset Form
     [
       "rec-name",
       "rec-cook-time",
       "rec-output-text",
       "rec-note",
       "steps-list-container",
-      "ing-search-picker", // Thêm vào để clear ô tìm kiếm nguyên liệu
-      "ing-qty-picker", // Thêm vào để clear ô số lượng nguyên liệu
-      "recipe-image-upload", // Reset ô chọn file
+      "ing-search-picker",
+      "ing-qty-picker",
+      "recipe-image-upload",
     ].forEach((id) => {
       if ($(id))
         $(id)[id === "steps-list-container" ? "innerHTML" : "value"] = "";
     });
-    window.recipeIngredientsList = [];
-    window.selectedPickerIng = null; // Reset trạng thái nguyên liệu đã chọn
+
+    window.recipeState.selectedPickerIng = null;
     if ($("selected-ing-unit-lbl"))
       $("selected-ing-unit-lbl").innerText = "Đơn vị: --";
 
-    // Reset ảnh preview
     if ($("recipe-image-preview")) $("recipe-image-preview").src = "";
     if ($("recipe-image-preview-container"))
       $("recipe-image-preview-container").style.display = "none";
@@ -249,19 +279,26 @@
     const modalTitle = $("modal-title");
     if (modalTitle) {
       modalTitle.innerText =
-        currentModalMode === "view"
+        window.recipeState.currentModalMode === "view"
           ? "Chi Tiết Công Thức"
-          : currentModalMode === "edit"
+          : window.recipeState.currentModalMode === "edit"
             ? "Chỉnh Sửa Công Thức"
             : "Thêm Công Thức Mới";
     }
 
     toggleInputStates();
 
-    window.toggleLoader(true);
+    // Đảm bảo các tiêu đề section luôn có class để CSS grid nhận diện trong view-mode
+    const labels = document.querySelectorAll("#recipe-modal .modal-body > h4");
+    if (labels.length >= 2) {
+      labels[0].className = "section-label";
+      labels[1].className = "section-label";
+    }
+
+    await window.showLoader(true);
     try {
-      window.cachedIngredients = await API.db_query(
-        "SELECT id, name, unit, unit_price FROM ingredients WHERE is_active = 1 AND type = 'ingredient' ORDER BY name ASC",
+      window.recipeState.cachedIngredients = await API.db_query(
+        "SELECT id, name, unit, unit_price FROM ingredients WHERE is_active = 1 AND type = 'ingredient' ORDER BY name ASC", //
       );
 
       if (recipeId) {
@@ -270,25 +307,34 @@
           [recipeId],
         );
         if (recipe) {
-          window.currentViewedRecipe = recipe; // Lưu công thức vào biến toàn cục
+          window.recipeState.currentViewedRecipe = recipe;
           $("rec-name").value = recipe.name || "";
           if ($("rec-type"))
             $("rec-type").value = recipe.recipe_type || "general";
           $("rec-cook-time").value = recipe.cook_time || "";
-          $("rec-output-text").value =
-            recipe.output && parseInt(recipe.output) > 0 ? recipe.output : 1;
-          window.recipeOriginalOutput =
+          $("rec-output-text").value = parseInt(recipe.output) || 1;
+          window.recipeState.originalOutput =
             parseInt($("rec-output-text").value) || 1;
           $("rec-note").value = recipe.note || "";
 
-          // Hiển thị ảnh nếu có
-          if (recipe.image_path) {
-            const imgPreview = $("recipe-image-preview");
-            if (imgPreview)
+          const pPath = await API.getAssetPath("placeholder.png");
+          const placeholderUrl = `app-img:///${pPath.replace(/\\/g, "/")}`;
+
+          const imgPreview = $("recipe-image-preview");
+          const imgContainer = $("recipe-image-preview-container");
+          if (imgPreview && imgContainer) {
+            if (recipe.image_path) {
               imgPreview.src = `app-img:///${recipe.image_path.replace(/\\/g, "/")}`;
-            const imgContainer = $("recipe-image-preview-container");
-            if (imgContainer)
-              imgContainer.style.display = recipe.image_path ? "flex" : "none";
+              imgContainer.classList.add("flex");
+              imgContainer.classList.remove("hidden");
+            } else if (window.recipeState.currentModalMode === "view") {
+              imgPreview.src = placeholderUrl;
+              imgContainer.classList.add("flex");
+              imgContainer.classList.remove("hidden");
+            } else {
+              imgContainer.classList.add("hidden");
+              imgContainer.classList.remove("flex");
+            }
           }
 
           if (recipe.steps_json) {
@@ -302,12 +348,12 @@
           }
 
           const components = await API.db_query(
-            `SELECT ri.ingredient_id AS id, i.name, ri.qty, i.unit, i.unit_price 
+            `SELECT ri.ingredient_id AS id, i.name, ri.qty, i.unit, i.unit_price
              FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = ?`,
             [recipeId],
           );
 
-          window.recipeIngredientsList = components.map((c) => ({
+          window.recipeState.ingredientsList = components.map((c) => ({
             ...c,
             cost: c.qty * c.unit_price,
           }));
@@ -321,22 +367,22 @@
 
       renderIngredientsStructure();
       toggleInputStates();
-      if ($("recipe-modal")) $("recipe-modal").style.display = "flex";
+      if ($("recipe-modal")) $("recipe-modal").classList.add("flex");
     } catch (error) {
       console.error("Lỗi mở modal:", error);
       window.showToast?.("Gặp lỗi khi tải dữ liệu.", "error");
     } finally {
-      window.toggleLoader(false);
+      window.showLoader(false);
     }
   }
 
   function closeRecipeModal() {
-    if ($("recipe-modal")) $("recipe-modal").style.display = "none";
-    window.currentRecipeId = null;
+    if ($("recipe-modal")) $("recipe-modal").classList.remove("flex");
+    window.recipeState.currentId = null;
     // Đảm bảo các trường picker cũng được reset khi đóng modal
     if ($("ing-search-picker")) $("ing-search-picker").value = "";
-    window.recipeIngredientsList = [];
-    window.selectedPickerIng = null;
+    window.recipeState.ingredientsList = [];
+    window.recipeState.selectedPickerIng = null;
   }
 
   function renderIngredientsStructure() {
@@ -344,25 +390,25 @@
     const totalDisplay = $("total-cost-display");
     if (!tbody) return;
 
-    if (!window.recipeIngredientsList?.length) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #999;">Chưa có nguyên liệu nào được thêm!</td></tr>`;
+    if (!window.recipeState.ingredientsList?.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center p-lg" style="color: var(--neutral-700);">Chưa có nguyên liệu nào được thêm!</td></tr>`; //
       if (totalDisplay) totalDisplay.innerText = "0 đ";
       return;
     }
 
     let totalCost = 0;
-    tbody.innerHTML = window.recipeIngredientsList
+    tbody.innerHTML = window.recipeState.ingredientsList
       .map((ing, idx) => {
-        const displayQty = ing.qty * window.recipeScaleFactor;
-        const cost = displayQty * ing.unit_price;
+        const displayQty = ing.qty * window.recipeState.scaleFactor;
+        const cost = displayQty * ing.unit_price; //
         totalCost += cost;
         return `
         <tr>
-          <td>${idx + 1}</td>
+          <td class="text-center" style="width: 40px; color: var(--color-text-muted);">${idx + 1}</td>
           <td class="font-weight-bold">${ing.name}</td>
-          <td>${currentModalMode === "view" ? `<span class="scaled-qty">${window.formatNumber(displayQty)}</span>` : `<input type="number" class="table-qty-input" value="${ing.qty}" oninput="window.updateIngRowQty(${ing.id}, this.value)" onfocus="this.select()" min="0.01" step="any" />`}</td>
+          <td>${window.recipeState.currentModalMode === "view" ? `<span class="scaled-qty">${window.formatNumber(displayQty)}</span>` : `<input type="number" class="table-qty-input" value="${ing.qty}" oninput="window.updateIngRowQty(${ing.id}, this.value)" onfocus="this.select()" min="0.01" step="any" />`}</td>
           <td><span class="badge-unit">${ing.unit}</span></td>
-          <td class="text-right font-weight-bold">${window.formatNumber(Math.round(cost))} đ</td>
+          <td class="text-right font-weight-bold edit-visible">${window.formatNumber(Math.round(cost))} đ</td>
           <td class="text-center edit-visible"><button type="button" class="btn-delete-row" onclick="window.removeIngRow(${ing.id})">❌</button></td>
         </tr>`;
       })
@@ -382,7 +428,7 @@
     const note = val("rec-note");
 
     if (!name) return window.showToast?.("Vui lòng nhập tên bánh!", "warning");
-    if (!window.recipeIngredientsList.length)
+    if (!window.recipeState.ingredientsList.length)
       return window.showToast?.(
         "Vui lòng chọn ít nhất một nguyên liệu!",
         "warning",
@@ -400,23 +446,22 @@
       .filter(Boolean);
     const stepsJson = JSON.stringify(steps);
 
-    window.toggleLoader(true);
+    await window.showLoader(true);
     try {
-      window.recipesSourceData = null; // Invalidate cache
+      window.recipeState.sourceData = null; // Invalidate cache
 
       let imagePathToSave = null;
-      const oldImagePath = window.currentViewedRecipe?.image_path || null;
+      const oldImagePath =
+        window.recipeState.currentViewedRecipe?.image_path || null;
 
-      if (window.currentRecipeImageFile) {
+      if (window.recipeState.currentImageFile) {
         // Gửi ảnh lên Main Process để lưu vào thư mục cố định
         imagePathToSave = await API.saveRecipeImage(
-          window.currentRecipeImageFile,
+          window.recipeState.currentImageFile,
         );
-      } else if (window.currentViewedRecipe?.image_path) {
-        // Giữ lại ảnh cũ nếu không có ảnh mới được chọn
-        // Chỉ giữ lại nếu không phải là chế độ "add" và không có file mới được chọn
-        if (currentModalMode !== "add") {
-          imagePathToSave = window.currentViewedRecipe.image_path;
+      } else if (window.recipeState.currentViewedRecipe?.image_path) {
+        if (window.recipeState.currentModalMode !== "add") {
+          imagePathToSave = window.recipeState.currentViewedRecipe.image_path;
         }
       }
 
@@ -427,7 +472,9 @@
       const isDuplicate = allItems.some(
         (item) =>
           item.name.toLowerCase() === lowerName &&
-          (window.currentRecipeId ? item.id !== window.currentRecipeId : true),
+          (window.recipeState.currentId
+            ? item.id !== window.recipeState.currentId
+            : true),
       );
 
       if (isDuplicate) {
@@ -437,7 +484,7 @@
         );
       }
 
-      let targetRecipeId = window.currentRecipeId;
+      let targetRecipeId = window.recipeState.currentId;
 
       // Nếu có ảnh cũ và ảnh mới khác ảnh cũ (hoặc ảnh mới là null), thì xóa ảnh cũ
       if (oldImagePath && oldImagePath !== imagePathToSave) {
@@ -471,7 +518,7 @@
         targetRecipeId = id;
       }
 
-      for (const ing of window.recipeIngredientsList) {
+      for (const ing of window.recipeState.ingredientsList) {
         await API.db_execute(
           "INSERT INTO recipe_ingredients (recipe_id, ingredient_id, qty) VALUES (?, ?, ?)",
           [targetRecipeId, ing.id, ing.qty],
@@ -479,7 +526,7 @@
       }
 
       window.showToast?.(
-        window.currentRecipeId
+        window.recipeState.currentId
           ? "Cập nhật thành công!"
           : "Thêm mới thành công!",
         "success",
@@ -488,48 +535,56 @@
       window.invalidateAndReload("fillingOptions", null); // Invalidate filling options cache
       window.invalidateAndReload("menuSourceData", null); // Invalidate menu list cache
 
-      window.currentRecipeImageFile = null; // Clear selected image after saving
-      if (window.currentRecipeId)
-        window.openRecipeModal("view", targetRecipeId);
-      else closeRecipeModal();
+      window.recipeState.currentImageFile = null; // Clear selected image after saving
     } catch (error) {
       console.error("Lỗi lưu DB:", error);
-      window.showToast?.("Tên công thức bị trùng hoặc sự cố DB!", "error");
+      window.showToast?.("Lỗi cơ sở dữ liệu khi lưu công thức!", "error");
     } finally {
-      window.toggleLoader(false);
+      const targetId = window.recipeState.currentId;
+      await window.showLoader(false);
+
+      // Đảm bảo Modal đóng/chuyển mode sau khi Loader đã thực sự biến mất
+      setTimeout(async () => {
+        if (targetId) {
+          await openRecipeModal("view", targetId);
+          $("rec-output-text")?.focus();
+        } else {
+          closeRecipeModal();
+          $("recipe-search")?.focus();
+        }
+      }, 400); // Tăng lên 400ms
     }
   }
-
   async function deleteRecipe(id, name) {
+    await window.showLoader(true); // Bật loader ngay khi bắt đầu
     try {
       // Kiểm tra xem công thức có đang được sử dụng trong menu nào không
       const menuCheck = await API.db_query(
-        `SELECT m.name FROM menu_items m 
-         JOIN menu_recipes mr ON m.id = mr.menu_item_id 
+        `SELECT m.name FROM menu_items m
+         JOIN menu_recipes mr ON m.id = mr.menu_item_id
          WHERE mr.recipe_id = ? AND m.is_active = 1`,
         [id],
       );
 
       if (menuCheck?.length > 0) {
         const menuNames = menuCheck.map((m) => m.name).join(", ");
-        return window.showToast?.(
+        window.showToast?.(
           `Không thể xóa: Công thức đang được dùng trong món: ${menuNames}`,
           "warning",
         );
+        return; // Thoát sớm nếu công thức đang được sử dụng
       }
-    } catch (err) {
-      console.error("Lỗi kiểm tra ràng buộc menu:", err);
-    }
 
-    if (
-      window.showConfirm &&
-      !(await window.showConfirm(
-        "Xác nhận xóa",
-        `Xóa công thức "${name}" khỏi danh sách?`,
-      ))
-    )
-      return;
-    try {
+      if (
+        window.showConfirm &&
+        !(await window.showConfirm(
+          "Xác nhận xóa",
+          `Xóa công thức "${name}" khỏi danh sách?`,
+        ))
+      ) {
+        return; // Thoát sớm nếu người dùng hủy
+      }
+
       window.recipesSourceData = null; // Invalidate cache
       await API.db_execute("UPDATE recipes SET is_active = 0 WHERE id = ?", [
         id,
@@ -539,31 +594,36 @@
       window.invalidateAndReload("menuSourceData", null); // Invalidate menu list cache
       loadRecipes();
     } catch (error) {
-      console.error("Lỗi xóa:", error);
-      window.showToast?.("Không thể thực hiện tác vụ này.", "error");
+      // Bắt lỗi cho toàn bộ quá trình xóa
+      console.error("Lỗi khi xóa công thức:", error);
+      window.showToast?.(`Không thể xóa công thức: ${error.message}`, "error");
+    } finally {
+      await window.showLoader(false); // Luôn tắt loader
     }
   }
 
   // --- Picker Helpers ---
   function showAllIngredientsPicker() {
-    if (currentModalMode === "view") return;
-    window.pickerFilteredList = [...window.cachedIngredients];
-    window.pickerDisplayedCount = 20;
+    if (window.recipeState.currentModalMode === "view") return;
+    window.recipeState.pickerFilteredList = [
+      ...window.recipeState.cachedIngredients,
+    ];
+    window.recipeState.pickerDisplayedCount = 20;
     renderPickerDropdown();
   }
 
   const filterIngredientPicker = window.debounce(() => {
     const txt = $("ing-search-picker")?.value.trim() || "";
     const normalizedTxt = window.removeAccents(txt);
-    window.pickerFilteredList = txt
-      ? window.cachedIngredients.filter((i) =>
+    window.recipeState.pickerFilteredList = txt
+      ? window.recipeState.cachedIngredients.filter((i) =>
           (
             i._normalizedName ||
             (i._normalizedName = window.removeAccents(i.name))
           ).includes(normalizedTxt),
         )
-      : [...window.cachedIngredients];
-    window.pickerDisplayedCount = 20;
+      : [...window.recipeState.cachedIngredients];
+    window.recipeState.pickerDisplayedCount = 20;
     renderPickerDropdown();
   }, 300);
 
@@ -571,9 +631,9 @@
     const dropdown = $("ing-picker-dropdown");
     if (!dropdown) return;
 
-    const listToShow = window.pickerFilteredList.slice(
+    const listToShow = window.recipeState.pickerFilteredList.slice(
       0,
-      window.pickerDisplayedCount,
+      window.recipeState.pickerDisplayedCount,
     );
     if (!listToShow.length) {
       dropdown.innerHTML = `<div class="picker-no-result">Không tìm thấy vật tư</div>`;
@@ -589,27 +649,29 @@
         .join("");
     }
     dropdown.style.display = "block";
-  }
+  } //
 
   function handlePickerScroll(e) {
     const el = e.target;
     if (
       el.scrollTop + el.clientHeight >= el.scrollHeight - 10 &&
-      window.pickerDisplayedCount < window.pickerFilteredList.length
+      window.recipeState.pickerDisplayedCount <
+        window.recipeState.pickerFilteredList.length
     ) {
-      window.pickerDisplayedCount += 20;
+      window.recipeState.pickerDisplayedCount += 20;
       renderPickerDropdown();
     }
   }
 
   function selectIngFromPicker(id) {
-    const target = window.cachedIngredients.find((i) => i.id === id);
+    const target = window.recipeState.cachedIngredients.find(
+      (i) => i.id === id,
+    );
     if (!target) return;
 
-    window.selectedPickerIng = target;
-    if ($("ing-search-picker")) $("ing-search-picker").value = target.name;
-    if ($("selected-ing-unit-lbl"))
-      $("selected-ing-unit-lbl").innerText = `Đơn vị: ${target.unit}`;
+    window.recipeState.selectedPickerIng = target;
+    if ($("ing-search-picker")) $("ing-search-picker").value = target.name; //
+    $("selected-ing-unit-lbl").innerText = `Đơn vị: ${target.unit}`;
     if ($("ing-picker-dropdown"))
       $("ing-picker-dropdown").style.display = "none";
 
@@ -621,7 +683,7 @@
   }
 
   function addIngredientToRecipe() {
-    if (!window.selectedPickerIng)
+    if (!window.recipeState.selectedPickerIng)
       return window.showToast?.("Vui lòng chọn một nguyên liệu!", "warning");
     const qtyInput = $("ing-qty-picker");
     const qty = parseFloat(qtyInput?.value) || 0;
@@ -629,17 +691,17 @@
     if (qty <= 0)
       return window.showToast?.("Số lượng định lượng phải > 0!", "warning");
 
-    const existed = window.recipeIngredientsList.find(
-      (i) => i.id === window.selectedPickerIng.id,
+    const existed = window.recipeState.ingredientsList.find(
+      (i) => i.id === window.recipeState.selectedPickerIng.id,
     );
     if (existed) {
       existed.qty += qty;
       existed.cost = existed.qty * existed.unit_price;
     } else {
-      window.recipeIngredientsList.push({
-        ...window.selectedPickerIng,
+      window.recipeState.ingredientsList.push({
+        ...window.recipeState.selectedPickerIng,
         qty,
-        cost: qty * window.selectedPickerIng.unit_price,
+        cost: qty * window.recipeState.selectedPickerIng.unit_price,
       });
     }
 
@@ -649,17 +711,17 @@
     if ($("selected-ing-unit-lbl"))
       $("selected-ing-unit-lbl").innerText = "Đơn vị: --";
     if (qtyInput) qtyInput.value = "";
-    window.selectedPickerIng = null;
+    window.recipeState.selectedPickerIng = null;
     $("ing-search-picker")?.focus();
   }
 
   function updateIngRowQty(id, value) {
     const qty = parseFloat(value) || 0;
-    const item = window.recipeIngredientsList.find((i) => i.id === id);
+    const item = window.recipeState.ingredientsList.find((i) => i.id === id);
     if (item) {
       item.qty = qty;
       item.cost = qty * item.unit_price;
-      const total = window.recipeIngredientsList.reduce(
+      const total = window.recipeState.ingredientsList.reduce(
         (sum, i) => sum + i.cost,
         0,
       );
@@ -670,9 +732,8 @@
   }
 
   function removeIngRow(id) {
-    window.recipeIngredientsList = window.recipeIngredientsList.filter(
-      (i) => i.id !== id,
-    );
+    window.recipeState.ingredientsList =
+      window.recipeState.ingredientsList.filter((i) => i.id !== id);
     renderIngredientsStructure();
   }
 
@@ -684,7 +745,7 @@
     div.className = "step-row";
     div.innerHTML = `
       <span class="step-number">${container.children.length + 1}</span>
-      <textarea class="step-textarea" placeholder="Mô tả nội dung..." rows="1" ${currentModalMode === "view" ? "disabled" : ""}>${text}</textarea>
+      <textarea class="step-textarea" placeholder="${window.recipeState.currentModalMode === "view" ? "" : "Mô tả công việc (VD: Đánh bông lòng trắng trứng...)"}" rows="1" ${window.recipeState.currentModalMode === "view" ? "disabled" : ""}>${text}</textarea>
       <button type="button" class="btn-delete-step edit-visible" onclick="this.parentElement.remove(); window.reIndexSteps();">❌</button>
     `;
 
@@ -732,8 +793,8 @@
   });
 
   window.switchRecipeTab = (type) => {
-    window.activeRecipeTab = type;
-    window.currentPageRecipes = 1;
+    window.recipeState.activeTab = type;
+    window.recipeState.currentPage = 1;
 
     // Cập nhật trạng thái active cho UI
     document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -744,10 +805,11 @@
   };
 
   function toggleRecipeMode() {
-    currentModalMode = currentModalMode === "view" ? "edit" : "view";
+    window.recipeState.currentModalMode =
+      window.recipeState.currentModalMode === "view" ? "edit" : "view";
     if ($("modal-title"))
       $("modal-title").innerText =
-        currentModalMode === "view"
+        window.recipeState.currentModalMode === "view"
           ? "Chi Tiết Công Thức"
           : "Chỉnh Sửa Công Thức";
     toggleInputStates();
@@ -756,31 +818,33 @@
 
   window.updateRecipeScale = (targetVal) => {
     const target = parseFloat(targetVal) || 0;
-    if (target > 0 && window.recipeOriginalOutput > 0) {
-      window.recipeScaleFactor = target / window.recipeOriginalOutput;
+    if (target > 0 && window.recipeState.originalOutput > 0) {
+      window.recipeState.scaleFactor =
+        target / window.recipeState.originalOutput;
     } else {
-      window.recipeScaleFactor = 1;
+      window.recipeState.scaleFactor = 1;
     }
     renderIngredientsStructure();
   };
 
-  window.handleImageSelect = (event) => {
+  function handleImageSelect(event) {
     const file = event.target.files?.[0];
     if (file) {
       const imgPreview = $("recipe-image-preview");
       const imgContainer = $("recipe-image-preview-container");
 
       if (imgContainer) {
+        //
         imgContainer.style.display = "flex";
         imgContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
 
       try {
         // Lấy đường dẫn thực tế để lưu vào DB sau này
-        const realPath = window.electronAPI.getPathForFile(file);
+        const realPath = window.electronAPI.getPathForFile(file).trim();
 
         if (realPath && !realPath.includes("fakepath")) {
-          window.currentRecipeImageFile = realPath;
+          window.recipeState.currentImageFile = realPath;
 
           // Ưu tiên hiển thị bằng protocol app-img để vượt qua rào cản OneDrive/Base64
           if (imgPreview) {
@@ -822,41 +886,41 @@
     } else {
       window.clearRecipeImage();
     }
-  };
+  }
 
-  window.clearRecipeImage = () => {
+  function clearRecipeImage() {
     const imgPreview = $("recipe-image-preview");
-    const oldImagePath = window.currentViewedRecipe?.image_path || null;
+    const oldImagePath =
+      window.recipeState.currentViewedRecipe?.image_path || null;
 
     // Xóa file vật lý khỏi ổ đĩa ngay khi nhấn xóa để giải phóng bộ nhớ
     if (oldImagePath) {
       API.deleteRecipeImageFile(oldImagePath); // Gửi yêu cầu xóa file ảnh cũ
-      window.currentViewedRecipe.image_path = null; // Cập nhật trạng thái trong đối tượng recipe đang xem
+      if (window.recipeState.currentViewedRecipe)
+        window.recipeState.currentViewedRecipe.image_path = null;
     }
     if (imgPreview) {
       imgPreview.onerror = null; // Gỡ bỏ listener để không kích hoạt cảnh báo lỗi khi gán src rỗng
       imgPreview.src = "";
     }
     const imgContainer = $("recipe-image-preview-container");
-    if (imgContainer) imgContainer.style.display = "none";
+    if (imgContainer) imgContainer.classList.add("hidden");
+    if (imgContainer) imgContainer.classList.remove("flex");
     const fileInput = $("recipe-image-upload");
     if (fileInput) fileInput.value = ""; // Xóa file đã chọn
-    window.currentRecipeImageFile = null; // Reset biến lưu file
-    // Nếu đang ở chế độ chỉnh sửa, xóa đường dẫn ảnh cũ khỏi đối tượng recipe đang xem
-    if (window.currentViewedRecipe)
-      window.currentViewedRecipe.image_path = null;
-  };
+    window.recipeState.currentImageFile = null; // Reset biến lưu file
+  }
 
   async function exportRecipeToPdf() {
-    if (!window.currentViewedRecipe) {
+    if (!window.recipeState.currentViewedRecipe) {
       window.showToast?.("Không có công thức để xuất PDF!", "warning");
       return;
     }
 
-    window.toggleLoader(true);
+    await window.showLoader(true);
     try {
-      const recipe = window.currentViewedRecipe;
-      const ingredients = window.recipeIngredientsList;
+      const recipe = window.recipeState.currentViewedRecipe;
+      const ingredients = window.recipeState.ingredientsList;
       const steps = Array.from($$(".step-textarea"))
         .map((input) => input.value.trim())
         .filter(Boolean);
@@ -867,19 +931,19 @@
       const pdfData = {
         name: recipe.name,
         cookTime: recipe.cook_time,
-        output: recipe.output * window.recipeScaleFactor,
+        output: recipe.output * window.recipeState.scaleFactor,
         originalOutput: recipe.output,
         note: recipe.note,
         steps: steps,
         ingredients: ingredients.map((ing) => ({
           name: ing.name,
-          qty: ing.qty * window.recipeScaleFactor,
+          qty: ing.qty * window.recipeState.scaleFactor,
           unit: ing.unit,
           unitPrice: ing.unit_price,
-          cost: ing.qty * ing.unit_price * window.recipeScaleFactor,
+          cost: ing.qty * ing.unit_price * window.recipeState.scaleFactor,
         })),
         totalCost: totalCost,
-        scaleFactor: window.recipeScaleFactor,
+        scaleFactor: window.recipeState.scaleFactor,
       };
 
       const result = await API.exportRecipePdf(pdfData);
@@ -888,7 +952,7 @@
       console.error("Lỗi xuất PDF:", error);
       window.showToast?.("Lỗi khi xuất PDF công thức!", "error");
     } finally {
-      window.toggleLoader(false);
+      window.showLoader(false);
     }
   }
 

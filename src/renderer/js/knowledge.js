@@ -15,9 +15,9 @@
     },
     async fetchArticles(keyword, categoryId) {
       let sql = `
-        SELECT k.*, c.name as cat_name, c.bg_color, c.text_color 
-        FROM baking_knowledge k 
-        LEFT JOIN knowledge_categories c ON k.category_id = c.id 
+        SELECT k.*, c.name as cat_name, c.bg_color, c.text_color
+        FROM baking_knowledge k
+        LEFT JOIN knowledge_categories c ON k.category_id = c.id
         WHERE k.is_active = 1
       `;
       const params = [];
@@ -38,8 +38,8 @@
     },
     async fetchArticleById(id) {
       const res = await API.db_query(
-        `SELECT k.*, c.name as cat_name, c.bg_color, c.text_color 
-         FROM baking_knowledge k LEFT JOIN knowledge_categories c ON k.category_id = c.id 
+        `SELECT k.*, c.name as cat_name, c.bg_color, c.text_color
+         FROM baking_knowledge k LEFT JOIN knowledge_categories c ON k.category_id = c.id
          WHERE k.id = ?`,
         [id],
       );
@@ -60,16 +60,19 @@
       const filterBar = $("knowledge-cat-filters");
       if (!filterBar) return;
 
+      // Đảm bảo container sử dụng cấu trúc tab-container để các nút hiển thị nằm ngang (flex-row)
+      filterBar.classList.add("tab-container");
+
       const isAllActive = selectedId === "ALL" ? "active" : "";
-      let html = `<div class="filter-tag ${isAllActive}" 
-        style="background: #eebd; color: #4e342e;" onclick="window.KnowledgeController.filterByCategory('ALL')">✨ Tất cả</div>`;
+      let html = `<button class="tab-btn ${isAllActive}" style="background: var(--neutral-300); color: var(--color-primary-text);"
+        onclick="window.KnowledgeController.filterByCategory('ALL')">✨ Tất cả</button>`;
 
       html += categories
         .map((c) => {
           const isActive = String(selectedId) === String(c.id) ? "active" : "";
-          return `<div class="filter-tag ${isActive}" 
-             style="background: ${c.bg_color}; color: ${c.text_color};" 
-             onclick="window.KnowledgeController.filterByCategory(${c.id})">${c.name}</div>`;
+          return `<button class="tab-btn ${isActive}"
+             style="background: ${c.bg_color}; color: ${c.text_color};"
+             onclick="window.KnowledgeController.filterByCategory(${c.id})">${c.name}</button>`; // Giữ lại màu động
         })
         .join("");
 
@@ -89,7 +92,7 @@
       if (!grid) return;
 
       if (!articles || articles.length === 0) {
-        grid.innerHTML = `<div class="no-data text-center" style="grid-column: 1 / -1; padding: 40px;">
+        grid.innerHTML = `<div class="no-data text-center p-xxl" style="grid-column: 1 / -1;">
           🌿 Thư viện chưa có bài viết nào phù hợp. Nhấn "Thêm Kiến Thức" ngay nhé!</div>`;
         return;
       }
@@ -140,7 +143,7 @@
         window.KnowledgeController.deleteArticle(article.id, article.title);
       };
 
-      $("knowledge-detail-modal").style.display = "flex";
+      $("knowledge-detail-modal").classList.add("flex");
     },
 
     hideDetailModal() {
@@ -165,7 +168,7 @@
         }, 20);
       }
 
-      modal.style.display = "flex";
+      modal.classList.add("flex");
     },
 
     hideFormModal() {
@@ -399,12 +402,14 @@
     KnowledgeController.deleteArticle(id, title);
 
   window.openCategoryModal = () => {
+    //
     resetCategoryForm();
     loadCategoryList();
-    $("category-modal").style.display = "flex";
+    $("category-modal").classList.add("flex");
   };
-  window.closeCategoryModal = () =>
-    ($("category-modal").style.display = "none");
+  window.closeCategoryModal = () => {
+    $("category-modal").classList.remove("flex");
+  };
   window.resetCategoryForm = resetCategoryForm;
   window.loadCategoryList = loadCategoryList;
 

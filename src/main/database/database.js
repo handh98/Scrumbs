@@ -3,39 +3,27 @@ const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const fs = require("fs");
 
-/**
- * CẤU HÌNH ĐƯỜNG DẪN DATABASE
- */
-const userDataPath = app.getPath("userData");
-const dbPath = path.join(userDataPath, "bakery.db");
-if (!fs.existsSync(userDataPath)) {
-  fs.mkdirSync(userDataPath, { recursive: true });
+let dbPath;
+if (!app.isPackaged) {
+  dbPath = path.join(process.cwd(), "bakery.db");
+  console.log("🛠 DEV MODE: Sử dụng DB kiểm thử tại dự án:", dbPath);
+} else {
+  const userDataPath = app.getPath("userData");
+  dbPath = path.join(userDataPath, "bakery.db");
+  if (!fs.existsSync(userDataPath)) {
+    fs.mkdirSync(userDataPath, { recursive: true });
+  }
+  console.log("🚀 PROD MODE: Sử dụng DB chính thức tại AppData:", dbPath);
 }
 
 let db;
 
 /**
- * Kết nối CSDL (Promise-based)
+ * Initializes connection to the SQLite database and sets performance PRAGMAs.
+ * @returns {Promise<void>} Resolves when connection and initialization are complete.
  */
 const connectDB = () => {
   return new Promise((resolve, reject) => {
-    // Kiểm tra xem tệp tin có bị khóa hoặc lỗi hệ thống không trước khi mở
-    if (fs.existsSync(dbPath)) {
-      try {
-        fs.accessSync(dbPath, fs.constants.R_OK | fs.constants.W_OK);
-      } catch (err) {
-        console.error(
-          "❌ Không thể truy cập tệp tin Database (lỗi OS hoặc quyền):",
-          err.message,
-        );
-        return reject(
-          new Error(
-            "Cơ sở dữ liệu bị hỏng hoặc không thể đọc. Vui lòng kiểm tra ổ đĩa.",
-          ),
-        );
-      }
-    }
-
     db = new sqlite3.Database(dbPath, (err) => {
       if (err) {
         console.error("❌ Lỗi kết nối CSDL:", err.message);
@@ -64,19 +52,29 @@ const connectDB = () => {
 };
 
 /**
- * Gửi thông báo xuống giao diện người dùng
+ * Sends a database migration or status message to the UI.
+ * @param {string} message - Content of the message.
+ * @param {string} [type='info'] - Type of message (loading, success, error, info).
  */
 function sendStatusToUI(message, type = "info") {
-  const win = BrowserWindow.getAllWindows()[0];
-  if (win) {
-    win.webContents.send("migration-status", { message, type });
+  const mainWin = BrowserWindow.getAllWindows().find(
+    (w) => !w.isDestroyed() && w.isVisible(),
+  );
+  if (mainWin) {
+    mainWin.webContents.send("migration-status", { message, type });
   }
 }
 
 /**
- * HELPER DB MANAGER (PROMISE-BASED)
+ * Wrapper object for common SQLite operations returning Promises.
  */
 const dbManager = {
+  /**
+   * Executes an INSERT, UPDATE, or DELETE statement.
+   * @param {string} sql - SQL query string.
+   * @param {Array} [params=[]] - Query parameters.
+   * @returns {Promise<{id: number, changes: number}>}
+   */
   run: (sql, params = []) => {
     return new Promise((resolve, reject) => {
       db.run(sql, params, function (err) {
@@ -85,6 +83,12 @@ const dbManager = {
       });
     });
   },
+  /**
+   * Executes a SELECT query that returns a single row.
+   * @param {string} sql - SQL query string.
+   * @param {Array} [params=[]] - Query parameters.
+   * @returns {Promise<Object|undefined>}
+   */
   get: (sql, params = []) => {
     return new Promise((resolve, reject) => {
       db.get(sql, params, (err, row) => {
@@ -93,7 +97,13 @@ const dbManager = {
       });
     });
   },
-  all: (sql, params = []) => {
+  /**
+   * Executes a SELECT query that returns all matching rows.
+   * @param {string} sql - SQL query string.
+   * @param {Array} [params=[]] - Query parameters.
+   * @returns {Promise<any[]>}
+   */
+  all: function (sql, params = []) {
     return new Promise((resolve, reject) => {
       db.all(sql, params, (err, rows) => {
         if (err) reject(err);
@@ -101,13 +111,18 @@ const dbManager = {
       });
     });
   },
-  serialize: (callback) => {
+  /**
+   * Ensures queries within the callback are executed sequentially.
+   * @param {Function} callback
+   */
+  serialize: function (callback) {
     db.serialize(callback);
   },
 };
 
 /**
- * TẠO BẢN SAO LƯU CƠ SỞ DỮ LIỆU
+ * Creates a timestamped backup of the current database file.
+ * @returns {Promise<void>}
  */
 async function createBackup() {
   const backupDir = path.join(path.dirname(dbPath), "backups");
@@ -126,17 +141,15 @@ async function createBackup() {
 }
 
 /**
- * KHỞI TẠO CẤU TRÚC DATABASE (DÀNH CHO DB MỚI)
+ * Initializes the database schema including tables, virtual tables for FTS, and triggers.
+ * @returns {Promise<void>}
  */
 const initDB = async () => {
-  // Ensure DB is connected before initialization
   if (!db) await connectDB();
 
   console.log("🚀 Đang khởi tạo CSDL mới...");
-  // db.run("DROP TABLE IF EXISTS schema_version"); // Dùng để reset schema_version trong dev
 
   db.serialize(() => {
-    // 1. Nguyên liệu & Vật tư
     db.run(`CREATE TABLE IF NOT EXISTS ingredients (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
@@ -154,7 +167,7 @@ const initDB = async () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
       cook_time INTEGER,
-      output INTEGER DEFAULT 1, 
+      output INTEGER DEFAULT 1,
       steps_json TEXT,
       total_cost REAL DEFAULT 0, -- Cột mới để tối ưu hiệu năng
       recipe_type TEXT DEFAULT 'general', -- 'crust', 'filling', 'general'
@@ -256,8 +269,8 @@ const initDB = async () => {
     db.run(`CREATE TABLE IF NOT EXISTS knowledge_categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
-      bg_color TEXT DEFAULT '#ffe9db',   
-      text_color TEXT DEFAULT '#bc5a1a', 
+      bg_color TEXT DEFAULT '#ffe9db',
+      text_color TEXT DEFAULT '#bc5a1a',
       is_active INTEGER DEFAULT 1
     )`);
 
@@ -265,13 +278,21 @@ const initDB = async () => {
     db.run(`CREATE TABLE IF NOT EXISTS baking_knowledge (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       category_id INTEGER DEFAULT 1,
-      title TEXT UNIQUE NOT NULL,        
-      summary TEXT,                      
-      content TEXT NOT NULL,             
+      title TEXT UNIQUE NOT NULL,
+      summary TEXT,
+      content TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       is_active INTEGER DEFAULT 1,
       FOREIGN KEY(category_id) REFERENCES knowledge_categories(id)
+    )`);
+
+    // 12. Ghi chú nhanh (Sticky Notes)
+    db.run(`CREATE TABLE IF NOT EXISTS sticky_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      content TEXT NOT NULL,
+      color TEXT DEFAULT '#fff9c4',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
     // 12. Bảng quản lý phiên bản schema
@@ -316,7 +337,7 @@ const initDB = async () => {
     db.run(`DROP TRIGGER IF EXISTS recipes_au`);
     db.run(`CREATE TRIGGER IF NOT EXISTS recipes_au AFTER UPDATE ON recipes BEGIN
       DELETE FROM recipes_fts WHERE rowid = OLD.id;
-      INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients) 
+      INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
       SELECT id, name, recipe_type, note,
              (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
       FROM recipes WHERE id = NEW.id;
@@ -415,7 +436,6 @@ const initDB = async () => {
       "CREATE INDEX IF NOT EXISTS idx_menu_recipes_lookup ON menu_recipes(menu_item_id)",
     );
 
-    // Nếu là DB mới hoàn toàn, khởi tạo version là 6 (phiên bản hiện tại)
     db.get("SELECT version FROM schema_version LIMIT 1", (err, row) => {
       if (!row) {
         db.run("DELETE FROM schema_version");
@@ -423,13 +443,12 @@ const initDB = async () => {
       }
     });
 
-    // Chèn dữ liệu mặc định
     seedDefaultData();
   });
 };
 
 /**
- * CHÈN DỮ LIỆU MẶC ĐỊNH
+ * Populates the database with default categories if empty.
  */
 const seedDefaultData = () => {
   db.get("SELECT COUNT(*) as count FROM knowledge_categories", (err, row) => {
@@ -451,15 +470,14 @@ const seedDefaultData = () => {
   });
 };
 /**
- * CẬP NHẬT CẤU TRÚC DATABASE (MIGRATION)
- * Đảm bảo các phiên bản DB cũ được bổ sung các cột mới mà không mất dữ liệu
+ * Handles schema migrations to ensure existing databases are up to date without data loss.
+ * @returns {Promise<void>}
  */
 async function upgradeDatabase() {
-  await createBackup(); // Thực hiện sao lưu trước khi chạy bất kỳ migration nào
+  await createBackup();
 
   let needsVacuum = false;
   try {
-    // Ensure schema_version table exists and get current version
     await dbManager.run(
       `CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)`,
     );
@@ -471,7 +489,6 @@ async function upgradeDatabase() {
         ? currentVersionRow.version
         : 0;
 
-    // Safety Check: Kiểm tra cấu trúc cột thực tế của bảng ảo
     const ftsCols = await dbManager.all("PRAGMA table_info(recipes_fts)");
     const ftsSchema = await dbManager.get(
       "SELECT sql FROM sqlite_master WHERE name='recipes_fts'",
@@ -493,8 +510,6 @@ async function upgradeDatabase() {
       console.warn(
         "⚠️ Cấu trúc tìm kiếm lỗi hoặc thiếu Trigger. Đang khôi phục triệt để...",
       );
-
-      // Xóa tất cả Trigger liên quan để tránh lỗi Orphan Logic khi tái tạo bảng
       const triggersToDrop = [
         "recipes_ai",
         "recipes_ad",
@@ -508,7 +523,6 @@ async function upgradeDatabase() {
       for (const t of triggersToDrop)
         await dbManager.run(`DROP TRIGGER IF EXISTS ${t}`);
 
-      // Xóa bảng lỗi ngay lập tức để Migration 10 có thể tạo lại bảng sạch
       await dbManager.run("DROP TABLE IF EXISTS recipes_fts");
       await dbManager.run("DROP TABLE IF EXISTS customers_fts");
       currentVersion = 9;
@@ -517,7 +531,6 @@ async function upgradeDatabase() {
     console.log(`🚀 DB Schema Version hiện tại: ${currentVersion}`);
     if (currentVersion > 0) sendStatusToUI(`Phiên bản CSDL: ${currentVersion}`);
 
-    // Migration 1: Add recipe_type to recipes
     if (currentVersion < 1) {
       const columns = await dbManager.all("PRAGMA table_info(recipes)");
       if (!columns.some((col) => col.name === "recipe_type")) {
@@ -595,7 +608,7 @@ async function upgradeDatabase() {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT UNIQUE NOT NULL,
           cook_time INTEGER,
-          output INTEGER DEFAULT 1, 
+          output INTEGER DEFAULT 1,
           steps_json TEXT,
           recipe_type TEXT DEFAULT 'general',
           note TEXT,
@@ -604,15 +617,15 @@ async function upgradeDatabase() {
 
         await dbManager.run(`INSERT INTO recipes_new (id, name, cook_time, output, steps_json, recipe_type, note, is_active)
           SELECT id, name, cook_time,
-            CASE 
-              WHEN CAST(CAST(output_text AS INTEGER) AS TEXT) = output_text AND CAST(output_text AS INTEGER) > 0 THEN CAST(output_text AS INTEGER) 
-              ELSE 1 
+            CASE
+              WHEN CAST(CAST(output_text AS INTEGER) AS TEXT) = output_text AND CAST(output_text AS INTEGER) > 0 THEN CAST(output_text AS INTEGER)
+              ELSE 1
             END,
             steps_json, recipe_type,
-            CASE 
+            CASE
               WHEN output_text IS NOT NULL AND CAST(CAST(output_text AS INTEGER) AS TEXT) != output_text
               THEN TRIM(output_text || ' ' || COALESCE(note, ''))
-              ELSE note 
+              ELSE note
             END,
             is_active
           FROM recipes`);
@@ -659,8 +672,8 @@ async function upgradeDatabase() {
       // Tạo bảng ảo FTS5 (không lưu dữ liệu gốc, chỉ lưu chỉ mục tìm kiếm)
       await dbManager.run(`
         CREATE VIRTUAL TABLE IF NOT EXISTS customers_fts USING fts5(
-          name, 
-          phone, 
+          name,
+          phone,
           tokenize='unicode61 remove_diacritics 1'
         )
       `);
@@ -707,8 +720,8 @@ async function upgradeDatabase() {
       // 1. Tạo bảng ảo FTS5 cho Recipes
       await dbManager.run(`
         CREATE VIRTUAL TABLE IF NOT EXISTS recipes_fts USING fts5(
-          name, 
-          recipe_type, 
+          name,
+          recipe_type,
           note,
           tokenize='unicode61 remove_diacritics 1'
         )
@@ -757,8 +770,8 @@ async function upgradeDatabase() {
       await dbManager.run("DROP TABLE IF EXISTS recipes_fts");
       await dbManager.run(`
         CREATE VIRTUAL TABLE recipes_fts USING fts5(
-          name, 
-          recipe_type, 
+          name,
+          recipe_type,
           note,
           ingredients, -- Cột mới để lưu danh sách tên nguyên liệu
           tokenize='unicode61 remove_diacritics 1'
@@ -769,9 +782,9 @@ async function upgradeDatabase() {
       await dbManager.run(`
         INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
         SELECT r.id, r.name, r.recipe_type, r.note,
-               (SELECT GROUP_CONCAT(i.name, '|') 
-                FROM recipe_ingredients ri 
-                JOIN ingredients i ON ri.ingredient_id = i.id 
+               (SELECT GROUP_CONCAT(i.name, '|')
+                FROM recipe_ingredients ri
+                JOIN ingredients i ON ri.ingredient_id = i.id
                 WHERE ri.recipe_id = r.id)
         FROM recipes r
       `);
@@ -796,7 +809,7 @@ async function upgradeDatabase() {
       await dbManager.run(`
         CREATE TRIGGER recipes_au AFTER UPDATE ON recipes BEGIN
           DELETE FROM recipes_fts WHERE rowid = OLD.id;
-          INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients) 
+          INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
           SELECT id, name, recipe_type, note,
                  (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
           FROM recipes WHERE id = new.id;
@@ -832,7 +845,7 @@ async function upgradeDatabase() {
       // 5. Tạo Trigger trên bảng ingredients để cập nhật FTS khi đổi tên nguyên liệu
       await dbManager.run(`
         CREATE TRIGGER IF NOT EXISTS ing_name_au AFTER UPDATE OF name ON ingredients BEGIN
-          DELETE FROM recipes_fts 
+          DELETE FROM recipes_fts
           WHERE rowid IN (SELECT recipe_id FROM recipe_ingredients WHERE ingredient_id = NEW.id);
 
           INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
@@ -915,7 +928,7 @@ async function upgradeDatabase() {
       await dbManager.run(`CREATE TRIGGER ri_au AFTER UPDATE ON recipe_ingredients BEGIN
         DELETE FROM recipes_fts WHERE rowid = OLD.recipe_id;
         DELETE FROM recipes_fts WHERE rowid = NEW.recipe_id;
-        
+
         INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
         SELECT id, name, recipe_type, note, (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
         FROM recipes WHERE id = NEW.recipe_id;
@@ -982,17 +995,6 @@ async function upgradeDatabase() {
       `);
 
       // Cập nhật các Trigger liên quan để đảm bảo luôn dùng đúng bảng mới
-      const triggers = [
-        "recipes_ai",
-        "recipes_ad",
-        "recipes_au",
-        "ri_ai",
-        "ri_ad",
-        "ri_au",
-        "customers_ai",
-        "customers_ad",
-        "customers_au",
-      ];
       // Các trigger này sẽ được initDB khởi tạo lại ở lần chạy sau hoặc ta có thể gọi lại initDB
       // Ở đây ta chỉ cần đảm bảo Version nhảy lên để DB Manager biết đã hoàn tất
 
@@ -1039,7 +1041,8 @@ async function upgradeDatabase() {
 }
 
 /**
- * KHỞI CHẠY TOÀN BỘ QUY TRÌNH SETUP CSDL
+ * Orchestrates the full database setup process (Connect -> Init -> Upgrade).
+ * @returns {Promise<void>}
  */
 const setupDatabase = async () => {
   try {
@@ -1054,9 +1057,7 @@ const setupDatabase = async () => {
 
 module.exports = {
   setupDatabase,
-  get db() {
-    return db;
-  },
+  getDb: () => db,
   query: dbManager.all,
   get: dbManager.get,
   run: dbManager.run,

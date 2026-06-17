@@ -3,6 +3,7 @@ dist/
 out/
 build/
 *.exe
+.vscode/
 # Database files
 bakery.db
 # SQLite database files

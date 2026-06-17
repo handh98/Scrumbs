@@ -1,10 +1,14 @@
 (function () {
   "use strict";
 
+  /**
+   * @typedef {Object} ElectronAPI
+   * @property {Function} db_query - Thực hiện truy vấn dữ liệu
+   */
   const API = window.electronAPI;
 
   window.loadDashboard = async () => {
-    window.toggleLoader(true);
+    await window.showLoader(true);
     try {
       const now = new Date();
       const todayStr = now.toISOString().split("T")[0];
@@ -22,11 +26,12 @@
         renderOrderShortages(),
         renderRevenueChart(todayStr),
         renderTopCakes(),
+        renderStickyNotes(),
       ]);
     } catch (error) {
       console.error("Lỗi đồng bộ dữ liệu Dashboard:", error);
     } finally {
-      window.toggleLoader(false);
+      window.showLoader(false);
     }
   };
 
@@ -63,7 +68,7 @@
 
     try {
       const sql = `
-        SELECT o.*, c.name AS cust_name, c.phone AS cust_phone 
+        SELECT o.*, c.name AS cust_name, c.phone AS cust_phone
         FROM orders o
         LEFT JOIN customers c ON o.customer_id = c.id
         WHERE o.delivery_date IN (?, ?) AND o.status != 'cancelled'
@@ -72,7 +77,7 @@
       const orders = await API.db_query(sql, [todayStr, tomorrowStr]);
 
       if (!orders || orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center no-data">✨ Thảnh thơi! Hôm nay và ngày mai chưa có đơn bánh nào cần giao.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center no-data">✨ Thảnh thơi! Hôm nay và ngày mai chưa có đơn bánh nào cần giao.</td></tr>`; //
         return;
       }
 
@@ -80,14 +85,13 @@
         .map((order) => {
           let itemsHtml = `<span class="text-muted">Lỗi dữ liệu bánh</span>`;
           try {
-            const items = order.items_json ? JSON.parse(order.items_json) : [];
+            const items = order.items_json ? JSON.parse(order.items_json) : []; //
             itemsHtml = items
-              .map(
-                (i) =>
-                  `<span class="cake-item-tag">${i.base_name} x${i.qty}</span>`,
-              )
+              .map((i) => `<span>${i.base_name} x${i.qty}</span>`)
               .join("");
-          } catch (e) {}
+          } catch (err) {
+            console.error("Lỗi parse items_json:", err);
+          }
 
           const isToday = order.delivery_date === todayStr;
           const dateLabel = isToday ? "🔴 Hôm nay" : "🟡 Ngày mai";
@@ -165,14 +169,14 @@
       );
 
       if (!orders || orders.length === 0) {
-        body.innerHTML = `<div class="text-center" style="color: #277c44; padding: 20px 0;">✅ Đủ nguyên liệu cho các đơn hàng hiện tại.</div>`;
+        body.innerHTML = `<div class="text-center py-md" style="color: var(--status-success-text);">✅ Đủ nguyên liệu cho các đơn hàng hiện tại.</div>`;
         return;
       }
 
       const menuNeeds = {}; // { menu_id: totalQty }
       const fillingNeeds = {}; // { recipe_id: totalQty }
 
-      // 2. Gom nhóm số lượng bánh theo loại
+      // 2. Gom nhóm số lượng bánh theo loại //
       orders.forEach((o) => {
         try {
           const items = JSON.parse(o.items_json || "[]");
@@ -183,8 +187,10 @@
                 (fillingNeeds[item.filling_id] || 0) + item.qty;
             }
           });
-        } catch (e) {}
-      });
+        } catch (err) {
+          console.error("Lỗi parse items_json trong shortages:", err);
+        }
+      }); //
 
       const requirements = {}; // { ingredient_id: { qtyNeeded, name, unit } }
 
@@ -267,7 +273,7 @@
         .filter((s) => s.shortage > 0.001); // Ngưỡng sai số float nhỏ
 
       if (!shortages.length) {
-        body.innerHTML = `<div class="text-center" style="color: #277c44; padding: 20px 0;">✅ Đủ nguyên liệu cho các đơn hàng hiện tại.</div>`;
+        body.innerHTML = `<div class="text-center py-md" style="color: var(--status-success-text);">✅ Đủ nguyên liệu cho các đơn hàng hiện tại.</div>`;
       } else {
         body.innerHTML = shortages
           .map(
@@ -300,9 +306,9 @@
       });
 
       const sql = `
-        SELECT delivery_date, SUM(total_amount) AS daily_total 
-        FROM orders 
-        WHERE status = 'completed' AND delivery_date BETWEEN ? AND ? 
+        SELECT delivery_date, SUM(total_amount) AS daily_total
+        FROM orders
+        WHERE status = 'completed' AND delivery_date BETWEEN ? AND ?
         GROUP BY delivery_date
       `;
       const rows = await API.db_query(sql, [dateList[0], dateList[6]]);
@@ -357,7 +363,9 @@
           for (const item of items) {
             cakeSales[item.name] = (cakeSales[item.name] || 0) + item.qty;
           }
-        } catch (e) {}
+        } catch (err) {
+          console.error("Lỗi parse items_json trong top cakes:", err);
+        }
       });
 
       // Rút gọn logic Sort bằng Object.entries
@@ -393,4 +401,123 @@
       console.error("Lỗi kết xuất top bánh:", error);
     }
   }
+
+  // 6. QUẢN LÝ GHI CHÚ NHANH (STICKY NOTES)
+  async function renderStickyNotes() {
+    const container = $("sticky-notes-section");
+    if (!container) return;
+
+    try {
+      const notes = await API.getStickyNotes();
+
+      let notesHtml = `
+        <div class="sticky-notes-grid">
+          <div class="sticky-note add-note-card" onclick="window.addNewStickyNote()">
+            <div class="add-icon">
+              <img src="src/renderer/assets/add-plus.svg" alt="Add" />
+            </div>
+            <p>Thêm ghi chú</p>
+          </div>
+      `;
+
+      notesHtml += notes
+        .map((note, index) => {
+          // Xử lý chuỗi an toàn để đưa vào thuộc tính onclick
+          const safeContent = note.content
+            .replace(/\\/g, "\\\\")
+            .replace(/`/g, "\\`")
+            .replace(/\$/g, "\\$");
+
+          return `
+            <div class="sticky-note note-tilt-${(index % 3) + 1}"
+                 style="background-color: ${note.color || "#fff9c4"}"
+                 onclick="window.editStickyNote(${note.id}, \`${safeContent}\`)">
+              <button class="delete-note-btn" onclick="window.deleteStickyNote(${note.id}, event)" title="Xóa ghi chú">×</button>
+              <div class="note-content">${note.content.replace(/\n/g, "<br>")}</div>
+              <div class="note-date">${new Date(note.created_at).toLocaleDateString("vi-VN")}</div>
+            </div>
+          `;
+        })
+        .join("");
+
+      notesHtml += `</div>`;
+      container.innerHTML = notesHtml;
+    } catch (err) {
+      console.error("Lỗi tải ghi chú:", err);
+    }
+  }
+
+  window.addNewStickyNote = async () => {
+    if (typeof window.showPrompt === "function") {
+      const content = await window.showPrompt(
+        "Ghi chú mới", // Title
+        "Bạn muốn ghi chú điều gì?",
+        "",
+      );
+      if (content && content.trim()) await saveNote(content.trim());
+    }
+  };
+
+  window.editStickyNote = async (id, oldContent) => {
+    //
+    if (typeof window.showPrompt !== "function") {
+      console.error("Lỗi: window.showPrompt chưa được định nghĩa.");
+      return;
+    }
+    const newContent = await window.showPrompt(
+      "Sửa ghi chú",
+      "Cập nhật nội dung ghi chú:",
+      oldContent,
+    );
+    if (
+      newContent !== null &&
+      newContent.trim() !== "" &&
+      newContent !== oldContent
+    ) {
+      try {
+        await API.updateStickyNote({ id, content: newContent.trim() });
+        renderStickyNotes();
+      } catch (err) {
+        console.error("Lỗi cập nhật ghi chú:", err);
+      }
+    }
+  };
+
+  async function saveNote(content) {
+    const colors = [
+      "#fff9c4",
+      "#ffecb3",
+      "#d1c4e9",
+      "#c8e6c9",
+      "#bbdefb",
+      "#f8bbd0",
+    ];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+    try {
+      await API.saveStickyNote({ content, color: randomColor });
+      renderStickyNotes();
+    } catch (err) {
+      console.error("Lỗi lưu ghi chú:", err);
+    }
+  }
+
+  window.deleteStickyNote = async (id, event) => {
+    try {
+      if (event) event.stopPropagation(); // Ngăn chặn việc click nút xóa làm mở cửa sổ sửa
+      if (
+        window.showConfirm &&
+        !(await window.showConfirm(
+          "Xóa ghi chú",
+          "Bạn chắc chắn muốn xóa ghi chú này?",
+        ))
+      ) {
+        return;
+      }
+      await API.deleteStickyNote(id);
+      renderStickyNotes();
+    } catch (err) {
+      console.error("Lỗi xóa ghi chú:", err);
+    }
+  };
 })();

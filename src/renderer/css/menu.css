@@ -27,43 +27,30 @@
 
 /* Form và khối cấu trúc */
 .form-section {
-  background: #fffcfc;
+  background: var(--color-white);
   padding: 18px;
   border-radius: 12px;
   margin-bottom: 15px;
-  border: 1px solid #fff0f2;
+  border: 1px solid var(--color-button-primary-hover);
 }
 
 .menu-section-label {
   font-weight: bold;
-  color: var(--text-chocolate);
+  color: var(--color-primary-text);
   display: block;
   margin-bottom: 8px;
-}
-
-/* Tiện ích khoảng cách & Bố cục */
-.mb-15 {
-  margin-bottom: 15px;
-}
-.mt-10 {
-  margin-top: 10px;
-}
-.row-flex {
-  display: flex;
-  gap: 15px;
-  align-items: center;
 }
 
 /* Layout danh sách phần tử con (Công thức / Nguyên liệu / Bao bì) */
 .recipe-header {
   display: flex;
   gap: 12px;
-  margin-top: 10px;
+  margin-top: var(--space-sm);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--font-size-base);
   color: #666;
-  padding-bottom: 5px;
-  border-bottom: 1px solid #eee;
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--neutral-400);
 }
 
 .recipe-row,
@@ -89,23 +76,23 @@
 }
 
 .filling-row select {
-  padding: 6px 10px;
-  border: 1px solid #ddd;
+  padding: 6px var(--space-sm);
+  border: 1px solid var(--neutral-500);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-base);
 }
 
 .recipe-cost-display[readonly] {
-  background-color: #f5f5f5;
-  color: #555;
+  background-color: var(--neutral-300);
+  color: var(--neutral-850);
   cursor: not-allowed;
   text-align: right;
 }
 
 .price-summary {
-  font-size: 16px;
+  font-size: var(--font-size-xl);
   font-weight: bold;
-  color: var(--deep-pink, #ff4d6d);
+  color: var(--color-highlight-danger);
   margin-right: auto;
 }
 
@@ -116,50 +103,21 @@
 .text-500 {
   font-weight: 500;
 }
-.text-right {
-  text-align: right;
-}
 .text-highlight {
-  color: var(--deep-pink);
+  color: var(--color-highlight-danger);
   font-weight: bold;
-}
-
-/* Empty State bảng con */
-.empty-row-msg {
-  text-align: center;
-  padding: 40px;
-  color: #bbb;
-  font-style: italic;
-  background: #fff;
-}
-
-/* Picker Badges cho Vỏ/Nhân/Chung */
-.picker-item-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-.picker-type-badge {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 5px;
-  font-weight: bold;
-  text-transform: uppercase;
-  vertical-align: middle;
 }
 .type-crust {
-  background-color: #e1f5fe;
-  color: #0288d1;
-  border: 1px solid #b3e5fc;
+  background-color: var(--color-type-crust-bg);
+  color: var(--color-type-crust-text);
+  border: 1px solid var(--color-border-info);
 }
 .type-filling {
-  background-color: #fff3e0;
-  color: #ef6c00;
-  border: 1px solid #ffe0b2;
+  background-color: var(--color-type-filling-bg);
+  color: var(--color-type-filling-text);
+  border: 1px solid var(--status-warning-text);
 }
 .type-general {
-  background-color: #f5f5f5;
-  color: #616161;
+  background-color: var(--color-type-general-bg);
+  color: var(--color-type-general-text);
 }

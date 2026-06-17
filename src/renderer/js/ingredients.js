@@ -2,10 +2,15 @@
   const itemsPerPage = 6;
   const API = window.electronAPI;
 
-  window.currentEditId ??= null;
-  window.allIngredients ??= [];
-  window.currentPage ??= 1;
-  window.currentIngType ??= "ingredient";
+  // Quy hoạch State để tránh lỗi NaN và xung đột biến
+  window.ingredientState = {
+    editingId: null,
+    filteredData: [],
+    sourceData: null,
+    currentPage: 1,
+    type: "ingredient",
+    keyword: "",
+  };
 
   function getFormElements() {
     return {
@@ -37,9 +42,9 @@
   }
 
   async function handleGlobalTabSwitch(targetType) {
-    window.currentIngType = targetType;
-    window.currentPage = 1;
-    window.ingredientsSourceData = null; // Clear typed cache
+    window.ingredientState.type = targetType;
+    window.ingredientState.currentPage = 1;
+    window.ingredientState.sourceData = null; // Clear typed cache
 
     const tabIngredient = $("tab-btn-ingredient");
     const tabPackage = $("tab-btn-package");
@@ -76,66 +81,62 @@
     if (!tbody) return;
 
     try {
-      window.toggleLoader(true);
-      window.currentKeyword ??= "";
+      await window.showLoader(true);
 
       // ĐỒNG BỘ UI VỚI STATE (Đảm bảo ô tìm kiếm khớp với bộ lọc đang chạy)
       const searchInput = $("ing-search");
       if (searchInput) {
-        // Nếu ô tìm kiếm trống (do vừa nạp trang), ta reset keyword về trống để hiện đủ data
-        if (searchInput.value === "") {
-          window.currentKeyword = "";
-        } else {
-          window.currentKeyword = searchInput.value.trim();
-        }
+        window.ingredientState.keyword = searchInput.value.trim();
       }
 
       // Đồng bộ Tab đang hiển thị với loại dữ liệu đang nạp
       const tabIngredient = $("tab-btn-ingredient");
       const tabPackage = $("tab-btn-package");
       if (tabIngredient && tabPackage) {
-        const isPackage = window.currentIngType === "package";
+        const isPackage = window.ingredientState.type === "package";
         tabPackage.classList.toggle("active", isPackage);
         tabIngredient.classList.toggle("active", !isPackage);
       }
 
-      if (!window.ingredientsSourceData) {
+      if (!window.ingredientState.sourceData) {
         const raw = await API.db_query(
           `SELECT id, name, price, qty, unit, unit_price, note, type
-           FROM ingredients 
+           FROM ingredients
            WHERE type = ? AND is_active = 1
            ORDER BY id DESC`,
-          [window.currentIngType],
+          [window.ingredientState.type],
         );
         raw.forEach((i) => (i._normalizedName = window.removeAccents(i.name)));
-        window.ingredientsSourceData = raw;
+        window.ingredientState.sourceData = raw;
       }
 
-      const kw = window.removeAccents(window.currentKeyword);
-      window.allIngredients = window.ingredientsSourceData.filter((i) =>
-        i._normalizedName.includes(kw),
-      );
+      const kw = window.removeAccents(window.ingredientState.keyword);
+      window.ingredientState.filteredData =
+        window.ingredientState.sourceData.filter((i) =>
+          i._normalizedName.includes(kw),
+        );
 
-      if (window.currentPage > 1 && window.allIngredients?.length) {
-        window.currentPage =
-          Math.min(
-            window.currentPage,
-            Math.ceil(window.allIngredients.length / itemsPerPage),
-          ) || 1;
-      }
+      // Kích hoạt hiệu ứng fade-in mượt mà khi đổi Tab hoặc phân trang
+      tbody.classList.remove("fade-in");
+      void tbody.offsetWidth; // Trigger reflow để restart animation
+      tbody.classList.add("fade-in");
 
       const pagingResult = window.getPagination(
-        window.allIngredients || [],
+        window.ingredientState.filteredData || [],
         itemsPerPage,
-        window.currentPage,
+        window.ingredientState.currentPage,
         (newPage) => {
-          window.currentPage = newPage;
+          window.ingredientState.currentPage = newPage;
           loadIngredients();
         },
       );
 
-      if (window.allIngredients && window.allIngredients.length > 0) {
-        const startIndex = (window.currentPage - 1) * itemsPerPage;
+      if (
+        window.ingredientState.filteredData &&
+        window.ingredientState.filteredData.length > 0
+      ) {
+        const startIndex =
+          (window.ingredientState.currentPage - 1) * itemsPerPage;
         tbody.innerHTML = pagingResult.data
           .map((item, index) => {
             const globalIndex = startIndex + index + 1;
@@ -146,8 +147,8 @@
             <tr>
               <td class="text-center">${globalIndex}</td>
               <td class="text-center"><b>${item.name}</b></td>
-              <td class="text-center" style="font-weight:bold; color:var(--deep-pink); white-space: nowrap;">
-                ${displayPrice} đ <small style="color:#bcaaa4; font-weight:normal;">/${item.unit || "đv"}</small>
+              <td class="text-center" style="font-weight:bold; color:var(--color-highlight-danger); white-space: nowrap;">
+                ${displayPrice} đ <small style="color:var(--color-text-muted); font-weight:normal;">/${item.unit || "đv"}</small>
               </td>
               <td class="text-center note-column has-tooltip" data-note="${currentNote || "..."}">
                 ${currentNote || "..."}
@@ -170,7 +171,7 @@
     } catch (err) {
       console.error("Lỗi nạp dữ liệu vật tư:", err);
     } finally {
-      window.toggleLoader(false);
+      window.showLoader(false);
     }
   }
 
@@ -190,7 +191,7 @@
     if (!name) return window.showToast?.("Vui lòng nhập tên!", "warning");
 
     // Chỉ bắt buộc nhập số lượng và tính unitPrice khi thêm mới
-    if (!window.currentEditId && qty <= 0) {
+    if (!window.ingredientState.editingId && qty <= 0) {
       return window.showToast?.(
         "Khối lượng/Số lượng phải lớn hơn 0!",
         "warning",
@@ -199,16 +200,16 @@
 
     const unitPrice = qty > 0 ? parseFloat((price / qty).toFixed(2)) : 0;
 
-    window.toggleLoader(true);
+    await window.showLoader(true);
     try {
-      window.ingredientsSourceData = null; // Invalidate cache
+      window.ingredientState.sourceData = null; // Invalidate cache
 
       // Tối ưu: Kiểm tra trùng tên bằng SQL thay vì filter JS
-      const checkSql = window.currentEditId
+      const checkSql = window.ingredientState.editingId
         ? "SELECT id FROM ingredients WHERE LOWER(name) = ? AND id != ? LIMIT 1"
         : "SELECT id FROM ingredients WHERE LOWER(name) = ? LIMIT 1";
-      const checkParams = window.currentEditId
-        ? [name.toLowerCase(), window.currentEditId]
+      const checkParams = window.ingredientState.editingId
+        ? [name.toLowerCase(), window.ingredientState.editingId]
         : [name.toLowerCase()];
       const duplicateRows = await API.db_query(checkSql, checkParams);
 
@@ -219,12 +220,21 @@
         );
       }
 
-      if (window.currentEditId) {
+      if (window.ingredientState.editingId) {
         await API.db_execute(
           "UPDATE ingredients SET name=?, price=?, qty=?, unit=?, unit_price=?, note=?, type=? WHERE id=?",
-          [name, price, qty, unit, unitPrice, note, type, window.currentEditId],
+          [
+            name,
+            price,
+            qty,
+            unit,
+            unitPrice,
+            note,
+            type,
+            window.ingredientState.editingId,
+          ],
         );
-        window.currentEditId = null;
+        window.ingredientState.editingId = null;
         window.showToast?.("Cập nhật thành công!", "success");
       } else {
         await API.db_execute(
@@ -234,13 +244,16 @@
         window.showToast?.("Thêm thành công!", "success");
       }
 
-      resetForm();
+      // Đợi load dữ liệu xong mới thực hiện các bước tiếp theo.
+      // loadIngredients() cũng gọi showLoader, nhưng giờ đã có counter xử lý.
       await loadIngredients();
     } catch (error) {
       console.error("Lỗi khi lưu DB:", error);
       window.showToast?.("Lỗi cơ sở dữ liệu!", "error");
     } finally {
-      window.toggleLoader(false);
+      await window.showLoader(false);
+      // Đảm bảo mọi hiệu ứng UI đã hoàn tất trước khi reset form và focus
+      setTimeout(() => resetForm(), 400);
     }
   }
 
@@ -253,7 +266,7 @@
       if (!rows?.length) return;
 
       const item = rows[0];
-      window.currentEditId = item.id;
+      window.ingredientState.editingId = item.id;
       const els = getFormElements();
 
       if (els.name) els.name.value = item.name || "";
@@ -284,10 +297,10 @@
 
   async function deleteIng(id) {
     try {
-      if (window.currentIngType === "package") {
+      if (window.ingredientState.type === "package") {
         const pkgCheck = await API.db_query(
-          `SELECT m.name FROM menu_items m 
-           JOIN menu_packaging mp ON m.id = mp.menu_item_id 
+          `SELECT m.name FROM menu_items m
+           JOIN menu_packaging mp ON m.id = mp.menu_item_id
            WHERE mp.ingredient_id = ? AND m.is_active = 1`,
           [id],
         );
@@ -298,12 +311,12 @@
           );
       } else {
         const recipeCheck = await API.db_query(
-          `SELECT r.name FROM recipes r 
-           JOIN recipe_ingredients ri ON r.id = ri.recipe_id 
+          `SELECT r.name FROM recipes r
+           JOIN recipe_ingredients ri ON r.id = ri.recipe_id
            WHERE ri.ingredient_id = ? AND r.is_active = 1
-           UNION 
-           SELECT m.name FROM menu_items m 
-           JOIN menu_ingredients mi ON m.id = mi.menu_item_id 
+           UNION
+           SELECT m.name FROM menu_items m
+           JOIN menu_ingredients mi ON m.id = mi.menu_item_id
            WHERE mi.ingredient_id = ? AND m.is_active = 1`,
           [id, id],
         );
@@ -318,18 +331,18 @@
         window.showConfirm &&
         !(await window.showConfirm(
           "Xác nhận xóa",
-          `Bạn có chắc muốn xóa ${window.currentIngType === "package" ? "bao bì" : "nguyên liệu"} này?`,
+          `Bạn có chắc muốn xóa ${window.ingredientState.type === "package" ? "bao bì" : "nguyên liệu"} này?`,
         ))
       )
         return;
 
-      window.ingredientsSourceData = null; // Invalidate cache
+      window.ingredientState.sourceData = null; // Invalidate cache
       await API.db_execute(
         "UPDATE ingredients SET is_active = 0 WHERE id = ?",
         [id],
       );
       window.showToast?.(
-        `Đã xóa ${window.currentIngType === "package" ? "bao bì" : "nguyên liệu"}!`,
+        `Đã xóa ${window.ingredientState.type === "package" ? "bao bì" : "nguyên liệu"}!`,
         "success",
       );
       window.invalidateAndReload("fillingOptions", null); // Invalidate filling options cache
@@ -341,8 +354,8 @@
   }
 
   const searchIng = window.debounce(() => {
-    window.currentKeyword = $("ing-search")?.value.trim() || "";
-    window.currentPage = 1;
+    window.ingredientState.keyword = $("ing-search")?.value.trim() || "";
+    window.ingredientState.currentPage = 1;
     loadIngredients();
   }, 300);
 
@@ -353,16 +366,16 @@
     if (els.qty) els.qty.value = "";
     if (els.note) els.note.value = "";
     if (els.unit) {
-      const isPackage = window.currentIngType === "package";
+      const isPackage = window.ingredientState.type === "package";
       els.unit.value = isPackage ? "cái" : "gam";
       els.unit.disabled = isPackage;
     }
     if (els.display) els.display.innerText = "0 đ";
 
-    window.currentEditId = null;
+    window.ingredientState.editingId = null;
     if (els.formTitle)
       els.formTitle.innerText =
-        window.currentIngType === "package"
+        window.ingredientState.type === "package"
           ? "Thêm Vật Tư Đóng Gói"
           : "Thêm Nguyên Liệu";
     if (els.saveBtn) {

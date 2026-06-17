@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   // Lệnh cài đặt bản cập nhật
-  installUpdate: () => ipcRenderer.send("install-update"),
+  installUpdate: () => ipcRenderer.invoke("install-update"),
 
   // Mở thư mục chứa file log
   openLogsFolder: () => ipcRenderer.invoke("open-logs-folder"),
@@ -30,11 +30,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getPathForFile: (file) => {
     if (!file) return null;
     // webUtils.getPathForFile là cách chuẩn cho Electron hiện đại
+    // Tuy nhiên, nó chỉ hoạt động với File object từ input[type="file"]
+    // Đối với đường dẫn tĩnh, chúng ta cần một cách khác
+    // webUtils.getPathForFile là cách chuẩn cho Electron hiện đại
     if (webUtils && typeof webUtils.getPathForFile === "function") {
       return webUtils.getPathForFile(file);
     }
     return file.path; // Fallback cho các bản Electron cũ hơn
   },
+
+  // Lấy đường dẫn tuyệt đối đến một tài sản (asset)
+  getAssetPath: (assetName) => ipcRenderer.invoke("get-asset-path", assetName),
 
   // Các hàm gửi yêu cầu từ Renderer lên Main (Database query/execute)
   db_query: (sql, params) => ipcRenderer.invoke("db-query", sql, params),
@@ -53,4 +59,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Xóa ảnh công thức
   deleteRecipeImageFile: (filePath) =>
     ipcRenderer.invoke("delete-recipe-image-file", filePath),
+
+  // Sticky Notes API
+  getStickyNotes: () => ipcRenderer.invoke("get-sticky-notes"),
+  saveStickyNote: (data) => ipcRenderer.invoke("save-sticky-note", data),
+  deleteStickyNote: (id) => ipcRenderer.invoke("delete-sticky-note", id),
+  updateStickyNote: (data) => ipcRenderer.invoke("update-sticky-note", data),
 });

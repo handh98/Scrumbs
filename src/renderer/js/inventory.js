@@ -1,10 +1,11 @@
 (function () {
   const itemsPerPage = 8;
   const API = window.electronAPI;
-  if (typeof window.currentPageInventory === "undefined")
-    window.currentPageInventory = 1;
-  if (typeof window.inventoryKeyword === "undefined")
-    window.inventoryKeyword = "";
+
+  window.inventoryState = {
+    currentPage: 1,
+    keyword: "",
+  };
 
   // 1. Tải bảng Tổng Quan Tồn Kho
   window.loadInventory = async () => {
@@ -15,12 +16,12 @@
       // Đồng bộ keyword từ UI
       const searchInput = $("inventory-search");
       if (searchInput) {
-        window.inventoryKeyword = searchInput.value.trim();
+        window.inventoryState.keyword = searchInput.value.trim();
       }
 
       const sql = `
-        SELECT 
-          i.id, i.name, i.unit, 
+        SELECT
+          i.id, i.name, i.unit,
           COALESCE(SUM(b.qty_remaining), 0) as total_qty
         FROM ingredients i
         LEFT JOIN inventory_batches b ON i.id = b.ingredient_id AND b.qty_remaining > 0
@@ -31,7 +32,7 @@
       const rawData = await API.db_query(sql);
 
       // Lọc không dấu và không phân biệt hoa thường
-      const kw = window.removeAccents(window.inventoryKeyword);
+      const kw = window.removeAccents(window.inventoryState.keyword);
       const data = rawData.filter((i) =>
         window.removeAccents(i.name).includes(kw),
       );
@@ -45,9 +46,9 @@
       const pagingResult = window.getPagination(
         data,
         itemsPerPage,
-        window.currentPageInventory,
+        window.inventoryState.currentPage,
         (newPage) => {
-          window.currentPageInventory = newPage;
+          window.inventoryState.currentPage = newPage;
           window.loadInventory();
         },
       );
@@ -55,9 +56,9 @@
       tbody.innerHTML = pagingResult.data
         .map((item, index) => {
           const stt =
-            (window.currentPageInventory - 1) * itemsPerPage + index + 1;
+            (window.inventoryState.currentPage - 1) * itemsPerPage + index + 1;
 
-          let statusHtml = "";
+          let statusHtml;
           if (item.total_qty === 0)
             statusHtml = `<span class="status-badge status-empty">Hết hàng</span>`;
           else if (item.total_qty < 10)
@@ -93,8 +94,8 @@
   };
 
   window.searchInventory = window.debounce(() => {
-    window.inventoryKeyword = $("inventory-search").value.trim();
-    window.currentPageInventory = 1;
+    window.inventoryState.keyword = $("inventory-search").value.trim();
+    window.inventoryState.currentPage = 1;
     window.loadInventory();
   }, 300);
 
@@ -134,7 +135,8 @@
 
       // Mở modal
       if ($("import-modal")) {
-        $("import-modal").style.display = "flex";
+        //
+        $("import-modal").classList.add("flex");
         window.initImportModalInputFormatters(); // Kích hoạt formatter ngay khi mở
       }
     } catch (error) {
@@ -145,7 +147,9 @@
     }
   };
 
-  window.closeImportModal = () => ($("import-modal").style.display = "none");
+  window.closeImportModal = () => {
+    $("import-modal").classList.remove("flex");
+  };
 
   // 3. Lưu Lô Nhập Kho mới
   window.saveImport = async () => {
@@ -174,7 +178,7 @@
 
     try {
       await API.db_execute(
-        `INSERT INTO inventory_batches (ingredient_id, qty_imported, qty_remaining, import_date, expiry_date, purchase_price, note) 
+        `INSERT INTO inventory_batches (ingredient_id, qty_imported, qty_remaining, import_date, expiry_date, purchase_price, note)
          VALUES (?, ?, ?, DATE('now'), ?, ?, ?)`,
         [ingId, qty, qty, expiry || null, totalPurchasePrice, note], // purchase_price lưu tổng giá mua của lô
       );
@@ -245,9 +249,8 @@
           })
           .join("");
       }
-
-      $("batch-modal").style.display = "flex";
-    } catch (error) {
+      $("batch-modal").classList.add("flex");
+    } catch {
       if (typeof window.showToast === "function")
         window.showToast("Lỗi khi tải lịch sử lô hàng", "error");
     }
@@ -273,5 +276,7 @@
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
-  window.closeBatchModal = () => ($("batch-modal").style.display = "none");
+  window.closeBatchModal = () => {
+    $("batch-modal").classList.remove("flex");
+  };
 })();
