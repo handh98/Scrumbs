@@ -96,7 +96,7 @@
     );
 
     // Box chat textareas
-    modal.querySelectorAll(".steps-vertical-list textarea").forEach((ta) => {
+    modal.querySelectorAll("#steps-list-container textarea").forEach((ta) => {
       ta.disabled = isView;
     });
   }
@@ -745,7 +745,7 @@
     div.className = "step-row";
     div.innerHTML = `
       <span class="step-number">${container.children.length + 1}</span>
-      <textarea class="step-textarea" placeholder="${window.recipeState.currentModalMode === "view" ? "" : "Mô tả công việc (VD: Đánh bông lòng trắng trứng...)"}" rows="1" ${window.recipeState.currentModalMode === "view" ? "disabled" : ""}>${text}</textarea>
+      <textarea class="step-textarea" placeholder="${window.recipeState.currentModalMode === "view" ? "" : "Mô tả công việc (VD: Đánh bông lòng trắng trứng...)"}" rows="1" ${window.recipeState.currentModalMode === "view" ? "disabled" : ""}>${text || ""}</textarea>
       <button type="button" class="btn-delete-step edit-visible" onclick="this.parentElement.remove(); window.reIndexSteps();">❌</button>
     `;
 

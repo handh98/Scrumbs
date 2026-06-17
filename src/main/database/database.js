@@ -439,7 +439,7 @@ const initDB = async () => {
     db.get("SELECT version FROM schema_version LIMIT 1", (err, row) => {
       if (!row) {
         db.run("DELETE FROM schema_version");
-        db.run("INSERT INTO schema_version (version) VALUES (14)");
+        db.run("INSERT INTO schema_version (version) VALUES (15)");
       }
     });
 
@@ -1019,6 +1019,21 @@ async function upgradeDatabase() {
       currentVersion = 14;
       needsVacuum = true;
       console.log("✅ Migration 14 thành công.");
+    }
+
+    // Migration 15: Đảm bảo cột steps_json luôn tồn tại (Phòng trường hợp bị mất trong các bản cũ)
+    if (currentVersion < 15) {
+      console.log(
+        "🔧 Migration 15: Kiểm tra cột steps_json cho bảng recipes...",
+      );
+      const columns = await dbManager.all("PRAGMA table_info(recipes)");
+      if (!columns.some((col) => col.name === "steps_json")) {
+        await dbManager.run("ALTER TABLE recipes ADD COLUMN steps_json TEXT");
+      }
+      await dbManager.run("DELETE FROM schema_version");
+      await dbManager.run("INSERT INTO schema_version (version) VALUES (15)");
+      currentVersion = 15;
+      console.log("✅ Migration 15 thành công.");
     }
 
     if (needsVacuum) {
