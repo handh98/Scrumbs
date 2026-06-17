@@ -82,6 +82,59 @@
   color: var(--status-error-text);
 }
 
+/* --- Prompt Modal & Overlays --- */
+.confirm-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(3px);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-modal-overlay.flex {
+  display: flex;
+}
+
+.confirm-modal-card {
+  background: var(--color-white);
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 450px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--neutral-300);
+}
+
+.prompt-input {
+  width: 100%;
+  margin: var(--space-md) 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1.5px solid var(--neutral-400);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.prompt-input:focus {
+  border-color: var(--color-interactive-primary);
+}
+
+.confirm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
 /* --- Dashboard Layout --- */
 .dashboard-wrapper {
   padding: var(--space-xl);
@@ -358,8 +411,13 @@
 
 /* --- Sticky Notes --- */
 .sticky-notes-panel {
-  margin-top: var(--space-xl);
-  border-top: 3px solid var(--color-background-active-item);
+  margin-bottom: var(--space-xl);
+  border-bottom: 3px solid var(--color-background-active-item);
+  border-top: none;
+}
+
+.sticky-notes-panel.top-notes {
+  margin-top: 0;
 }
 
 #sticky-notes-section {

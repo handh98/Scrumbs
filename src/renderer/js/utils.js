@@ -121,7 +121,7 @@ window.showPrompt = (title, message, defaultValue = "") => {
     modal.className = "confirm-modal-overlay";
     modal.classList.add("flex");
     modal.innerHTML = `
-      <div class="confirm-modal-card fade-in"> //
+      <div class="confirm-modal-card fade-in">
         <h4 class="mb-xs" style="color: var(--color-primary-text);">${title}</h4>
         <p>${message}</p>
         <textarea class="prompt-input" rows="3">${defaultValue}</textarea>

@@ -1,4 +1,20 @@
 <div class="dashboard-wrapper">
+  <!-- Khu vực Ghi chú nhanh (Đã chuyển lên đầu) -->
+  <div class="dashboard-panel sticky-notes-panel top-notes">
+    <div class="panel-header">
+      <h3 class="panel-title">
+        <img
+          src="src/renderer/assets/knowledge.svg"
+          alt="Note Icon"
+          class="icon"
+        />
+        Ghi Chú Nhắc Việc (Sticky Notes)
+      </h3>
+      <span class="panel-subtitle">Nhấn để sửa, dấu × để xóa nhanh</span>
+    </div>
+    <div class="panel-body" id="sticky-notes-section"></div>
+  </div>
+
   <div class="kpi-container">
     <div class="kpi-card">
       <div class="kpi-icon">
@@ -113,21 +129,5 @@
       </div>
       <div class="panel-body" id="chart-top-cakes-container"></div>
     </div>
-  </div>
-
-  <!-- Khu vực Ghi chú nhanh -->
-  <div class="dashboard-panel sticky-notes-panel">
-    <div class="panel-header">
-      <h3 class="panel-title">
-        <img
-          src="src/renderer/assets/knowledge.svg"
-          alt="Note Icon"
-          class="icon"
-        />
-        Ghi Chú Nhắc Việc (Sticky Notes)
-      </h3>
-      <span class="panel-subtitle">Nhấn để sửa, dấu × để xóa nhanh</span>
-    </div>
-    <div class="panel-body" id="sticky-notes-section"></div>
   </div>
 </div>
