@@ -158,16 +158,18 @@ app.whenReady().then(async () => {
   protocol.handle("app-img", async (request) => {
     try {
       const url = new URL(request.url);
-      // Giải mã các ký tự đặc biệt như %20 (khoảng trắng) trong đường dẫn
+      // Giải mã ký tự đặc biệt (khoảng trắng, dấu tiếng Việt)
       let filePath = decodeURIComponent(url.pathname);
 
       if (process.platform === "win32") {
-        // Trên Windows, pathname thường bắt đầu bằng /D:/... -> ta bỏ dấu / ở đầu
-        if (filePath.startsWith("/")) filePath = filePath.slice(1);
-
         // Trường hợp ổ đĩa bị nhảy vào phần host (app-img://D:/...)
         if (url.host && /^[a-zA-Z]$/.test(url.host)) {
-          filePath = url.host + ":" + filePath;
+          filePath =
+            url.host +
+            ":" +
+            (filePath.startsWith("/") ? filePath : "/" + filePath);
+        } else if (filePath.startsWith("/")) {
+          filePath = filePath.slice(1);
         }
 
         // Đảm bảo LUÔN có dấu \ sau ổ đĩa để tránh lỗi "drive-relative path" (D:Folder -> D:\Folder)
