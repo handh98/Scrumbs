@@ -109,7 +109,14 @@ function createMainWindow() {
   mainWindow.once("ready-to-show", () => {
     if (splashWindow) splashWindow.destroy();
     if (app.isPackaged) {
-      autoUpdater.checkForUpdatesAndNotify();
+      autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+        log.error("Lỗi khi kiểm tra cập nhật:", err);
+        // Chỉ ghi log, không làm gián đoạn trải nghiệm người dùng nếu lỗi chỉ là 404 hoặc mạng
+        sendUpdateStatusToRenderer(
+          "Không thể kết nối máy chủ cập nhật.",
+          "error",
+        );
+      });
     }
     mainWindow.show();
   });
