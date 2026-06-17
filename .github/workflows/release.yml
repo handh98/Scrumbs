@@ -3,9 +3,9 @@ name: Build and Release
 on:
   push:
     branches:
-      - main # Chạy khi bạn push vào nhánh main
+      - main
     tags:
-      - "v*" # Hoặc chạy khi bạn push một tag mới (ví dụ v1.0.7)
+      - "v*"
 
 jobs:
   build:
@@ -33,4 +33,10 @@ jobs:
       - name: Build and Publish Electron App
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run build -- --publish always
+        run: |
+          if ($env:GITHUB_REF -like "refs/tags/v*") {
+            npm run build -- --publish always
+          } else {
+            npm run build -- --publish never
+          }
+        shell: pwsh
