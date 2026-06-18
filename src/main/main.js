@@ -110,6 +110,18 @@ function createMainWindow() {
   mainWindow.maximize();
   mainWindow.loadFile(path.join(__dirname, "..", "..", "index.html"));
 
+  // Cho phép mở DevTools bằng phím tắt Ctrl+Shift+I (hoặc Cmd+Option+I trên Mac) trong bản Build
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (
+      (input.control || input.meta) &&
+      input.shift &&
+      input.key.toLowerCase() === "i"
+    ) {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
+
   mainWindow.once("ready-to-show", () => {
     if (splashWindow) splashWindow.destroy();
     if (app.isPackaged) {

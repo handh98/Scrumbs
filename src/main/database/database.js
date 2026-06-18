@@ -691,6 +691,7 @@ async function upgradeDatabase() {
       );
       const columns = await dbManager.all("PRAGMA table_info(recipes)");
       const hasOutputText = columns.some((col) => col.name === "output_text");
+      const hasStepsJson = columns.some((col) => col.name === "steps_json");
 
       if (hasOutputText) {
         await dbManager.run("PRAGMA foreign_keys=OFF");
@@ -705,13 +706,13 @@ async function upgradeDatabase() {
           is_active INTEGER DEFAULT 1
         )`);
 
-        await dbManager.run(`INSERT INTO recipes_new (id, name, cook_time, output, steps_json, recipe_type, note, is_active)
+        await dbManager.run(`INSERT INTO recipes_new (id, name, cook_time, output, ${hasStepsJson ? "steps_json, " : ""}recipe_type, note, is_active)
           SELECT id, name, cook_time,
             CASE
               WHEN CAST(CAST(output_text AS INTEGER) AS TEXT) = output_text AND CAST(output_text AS INTEGER) > 0 THEN CAST(output_text AS INTEGER)
               ELSE 1
             END,
-            steps_json, recipe_type,
+            ${hasStepsJson ? "steps_json, " : ""}recipe_type,
             CASE
               WHEN output_text IS NOT NULL AND CAST(CAST(output_text AS INTEGER) AS TEXT) != output_text
               THEN TRIM(output_text || ' ' || COALESCE(note, ''))

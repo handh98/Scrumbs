@@ -378,14 +378,22 @@
             }
           }
 
+          let stepsLoaded = false;
           if (recipe.steps_json) {
             try {
-              JSON.parse(recipe.steps_json).forEach((step) =>
-                window.addStepRow(step),
-              );
+              const steps = JSON.parse(recipe.steps_json);
+              if (Array.isArray(steps) && steps.length > 0) {
+                steps.forEach((step) => window.addStepRow(step));
+                stepsLoaded = true;
+              }
             } catch (e) {
               console.error("Lỗi parse bước làm:", e);
             }
+          }
+
+          // Nếu không có dữ liệu bước làm, tự động thêm 1 dòng trống để người dùng nhập (trừ mode view)
+          if (!stepsLoaded && window.recipeState.currentModalMode !== "view") {
+            window.addStepRow("");
           }
 
           const components = await API.db_query(
