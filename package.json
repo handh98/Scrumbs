@@ -56,12 +56,16 @@
       }
     ],
     "win": {
+      "publish": [
+        "github"
+      ],
       "target": [
         "nsis"
       ],
       "icon": "src/renderer/assets/icon.ico"
     },
     "nsis": {
+      "artifactName": "${productName}_Setup_${version}.${ext}",
       "installerIcon": "src/renderer/assets/icon.ico",
       "uninstallerIcon": "src/renderer/assets/icon.ico",
       "oneClick": false,
