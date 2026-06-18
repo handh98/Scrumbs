@@ -2,6 +2,19 @@
 window.$ = (id) => document.getElementById(id);
 window.$$ = (sel) => document.querySelectorAll(sel);
 
+/** Escape HTML characters */
+window.escHtml = (value) =>
+  String(value || "").replace(
+    /[&<>"]/g,
+    (ch) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+      })[ch],
+  );
+
 /** @type {boolean} Trạng thái cập nhật ngầm */
 window.isUpdateModalDismissed = false;
 
@@ -390,6 +403,143 @@ window.invalidateAndReload = async (sourceKey, reloadFunc) => {
   if (typeof reloadFunc === "function") {
     await reloadFunc();
   }
+};
+
+// ==========================================
+// --- INPUT VALIDATION HELPERS ---
+// ==========================================
+
+/**
+ * Validates form inputs and returns error messages if any.
+ * @param {Object} fields - Object with field names and values
+ * @param {Object} rules - Validation rules for each field
+ * @returns {Object} Object with field names as keys and error messages as values
+ */
+window.validateFields = (fields, rules) => {
+  const errors = {};
+
+  for (const [fieldName, value] of Object.entries(fields)) {
+    const rule = rules[fieldName];
+    if (!rule) continue;
+
+    // Check required
+    if (rule.required && (!value || value.toString().trim() === "")) {
+      errors[fieldName] = rule.requiredMsg || `${fieldName} là bắt buộc`;
+      continue;
+    }
+
+    if (!value) continue; // Skip other validations if value is empty and not required
+
+    // Check minLength
+    if (rule.minLength && value.toString().length < rule.minLength) {
+      errors[fieldName] =
+        rule.minLengthMsg ||
+        `${fieldName} phải có ít nhất ${rule.minLength} ký tự`;
+    }
+
+    // Check maxLength
+    if (rule.maxLength && value.toString().length > rule.maxLength) {
+      errors[fieldName] =
+        rule.maxLengthMsg ||
+        `${fieldName} không được vượt quá ${rule.maxLength} ký tự`;
+    }
+
+    // Check pattern (regex)
+    if (rule.pattern && !rule.pattern.test(value.toString())) {
+      errors[fieldName] = rule.patternMsg || `${fieldName} không hợp lệ`;
+    }
+
+    // Check min/max for numbers
+    if (rule.min !== undefined && Number(value) < rule.min) {
+      errors[fieldName] = rule.minMsg || `${fieldName} phải >= ${rule.min}`;
+    }
+
+    if (rule.max !== undefined && Number(value) > rule.max) {
+      errors[fieldName] = rule.maxMsg || `${fieldName} phải <= ${rule.max}`;
+    }
+
+    // Custom validator function
+    if (rule.custom && typeof rule.custom === "function") {
+      const customError = rule.custom(value);
+      if (customError) {
+        errors[fieldName] = customError;
+      }
+    }
+  }
+
+  return errors;
+};
+
+/**
+ * Sanitizes input to prevent XSS
+ * @param {string} input - User input
+ * @returns {string} Sanitized string
+ */
+window.sanitizeInput = (input) => {
+  if (!input) return "";
+  return input
+    .toString()
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .trim();
+};
+
+/**
+ * Validates a string is not empty and not just whitespace
+ * @param {string} value
+ * @param {string} fieldName
+ * @returns {string|null} Error message or null if valid
+ */
+window.validateRequired = (value, fieldName = "Trường") => {
+  if (!value || value.toString().trim() === "") {
+    return `${fieldName} không được để trống`;
+  }
+  return null;
+};
+
+/**
+ * Validates email format
+ * @param {string} email
+ * @returns {string|null} Error message or null if valid
+ */
+window.validateEmail = (email) => {
+  if (!email) return null;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return "Email không hợp lệ";
+  }
+  return null;
+};
+
+/**
+ * Validates phone number (Vietnamese format)
+ * @param {string} phone
+ * @returns {string|null} Error message or null if valid
+ */
+window.validatePhone = (phone) => {
+  if (!phone) return null;
+  const phoneRegex = /^[\d\s\-+()]{10,}$/;
+  if (!phoneRegex.test(phone.toString())) {
+    return "Số điện thoại không hợp lệ";
+  }
+  return null;
+};
+
+/**
+ * Validates positive number
+ * @param {number} value
+ * @param {string} fieldName
+ * @returns {string|null} Error message or null if valid
+ */
+window.validatePositiveNumber = (value, fieldName = "Giá trị") => {
+  const num = Number(value);
+  if (isNaN(num) || num <= 0) {
+    return `${fieldName} phải là số dương`;
+  }
+  return null;
 };
 
 // ==========================================

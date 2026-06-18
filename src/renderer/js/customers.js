@@ -28,7 +28,7 @@
         ORDER BY c.id DESC
       `;
 
-      const rawData = await API.db_query(sql);
+      const rawData = await API.db_query(sql).catch(() => []);
 
       // Lọc không dấu và không phân biệt hoa thường
       const kw = window.removeAccents(window.custKeyword);
@@ -99,6 +99,10 @@
         window.TooltipComponent.init();
     } catch (error) {
       console.error("Lỗi nạp danh sách khách hàng:", error);
+      window.showToast?.(
+        `Lỗi tải danh sách: ${error.message || "Không xác định"}`,
+        "error",
+      );
     }
   };
 
@@ -146,8 +150,33 @@
     const mode = modal.getAttribute("data-mode");
     const editId = modal.getAttribute("data-edit-id");
 
-    if (!name) {
-      return window.showToast("Vui lòng nhập tên khách hàng!", "warning");
+    // Validation
+    const errors = window.validateFields(
+      { name, phone },
+      {
+        name: {
+          required: true,
+          minLength: 2,
+          maxLength: 100,
+          requiredMsg: "Tên khách hàng không được trống",
+          minLengthMsg: "Tên phải có ít nhất 2 ký tự",
+          maxLengthMsg: "Tên không được vượt quá 100 ký tự",
+        },
+        phone: {
+          minLength: 10,
+          maxLength: 15,
+          pattern: /^[\d\s\-+()]*$/,
+          minLengthMsg: "Số điện thoại phải có ít nhất 10 ký tự",
+          maxLengthMsg: "Số điện thoại không được vượt quá 15 ký tự",
+          patternMsg: "Số điện thoại chỉ được chứa chữ số, dấu cách, -, +, ()",
+        },
+      },
+    );
+
+    if (Object.keys(errors).length > 0) {
+      const errorMsg = Object.values(errors).join("\n");
+      window.showToast?.(errorMsg, "warning");
+      return;
     }
 
     try {
@@ -170,7 +199,7 @@
           existingPhone === phone &&
           existingLowerName !== lowerName
         ) {
-          return window.showToast(
+          return window.showToast?.(
             `Số điện thoại này đã được đăng ký cho khách "${c.name}"!`,
             "warning",
           );
@@ -178,7 +207,7 @@
 
         // 2. Kiểm tra trùng lặp cặp Tên + Số
         if (existingLowerName === lowerName && existingPhone === phone) {
-          return window.showToast(
+          return window.showToast?.(
             "Khách hàng với tên và số điện thoại này đã tồn tại!",
             "warning",
           );
@@ -186,29 +215,37 @@
       }
     } catch (err) {
       console.error("Lỗi kiểm tra trùng lặp:", err);
+      window.showToast?.(`Lỗi kiểm tra: ${err.message}`, "error");
+      return;
     }
 
     await window.showLoader(true);
-    if (mode === "edit") {
-      await API.db_execute(
-        "UPDATE customers SET name=?, phone=?, address=? WHERE id=?",
-        [name, phone, address, editId],
-      );
-      window.showToast("Cập nhật thông tin thành công!", "success");
-    } else {
-      await API.db_execute(
-        "INSERT INTO customers (name, phone, address, is_active) VALUES (?, ?, ?, 1)",
-        [name, phone, address],
-      );
-      window.showToast("Thêm khách hàng thành công!", "success");
-    }
-
     try {
+      if (mode === "edit") {
+        await API.db_execute(
+          "UPDATE customers SET name=?, phone=?, address=? WHERE id=?",
+          [name, phone, address, editId],
+        );
+        window.showToast?.("Cập nhật thông tin thành công!", "success");
+      } else {
+        await API.db_execute(
+          "INSERT INTO customers (name, phone, address, is_active) VALUES (?, ?, ?, 1)",
+          [name, phone, address],
+        );
+        window.showToast?.("Thêm khách hàng thành công!", "success");
+      }
+
       window.closeCustomerModal();
       await window.loadCustomers();
+    } catch (error) {
+      console.error("Lỗi lưu khách hàng:", error);
+      window.showToast?.(
+        `Lỗi lưu: ${error.message || "Không xác định"}`,
+        "error",
+      );
     } finally {
       window.showLoader(false);
-      setTimeout(() => $("customer-search")?.focus(), 400); // Tăng lên 400ms
+      setTimeout(() => $("customer-search")?.focus(), 400);
     }
   };
 

@@ -20,7 +20,7 @@
       const currentMonthPattern = todayStr.substring(0, 7) + "%";
 
       // Load song song tất cả các widget để tăng tốc độ hiển thị UI
-      await Promise.all([
+      const results = await Promise.allSettled([
         renderKPICards(currentMonthPattern, todayStr),
         renderUrgentOrders(todayStr, tomorrowStr),
         renderOrderShortages(),
@@ -28,8 +28,21 @@
         renderTopCakes(),
         renderStickyNotes(),
       ]);
+
+      // Check for any failed promises
+      const failedIndex = results.findIndex((r) => r.status === "rejected");
+      if (failedIndex >= 0) {
+        const error = results[failedIndex].reason;
+        console.error(`Widget #${failedIndex} failed:`, error);
+      }
     } catch (error) {
       console.error("Lỗi đồng bộ dữ liệu Dashboard:", error);
+      if (typeof window.showToast === "function") {
+        window.showToast(
+          `Lỗi tải Dashboard: ${error.message || "Không xác định"}`,
+          "error",
+        );
+      }
     } finally {
       window.showLoader(false);
     }
@@ -42,22 +55,29 @@
         API.db_query(
           "SELECT SUM(total_amount) AS total FROM orders WHERE status = 'completed' AND delivery_date LIKE ?",
           [monthPattern],
-        ),
+        ).catch(() => [{ total: 0 }]),
         API.db_query(
           "SELECT COUNT(*) AS total FROM orders WHERE delivery_date = ? AND status != 'cancelled'",
           [todayStr],
-        ),
+        ).catch(() => [{ total: 0 }]),
         API.db_query(
           "SELECT COUNT(*) AS total FROM orders WHERE status IN ('pending', 'processing')",
-        ),
+        ).catch(() => [{ total: 0 }]),
       ]);
 
       const revenue = revRes?.[0]?.total || 0;
-      $("kpi-revenue").innerText = window.formatNumber(revenue) + " đ";
-      $("kpi-today").innerText = (todayRes?.[0]?.total || 0) + " đơn";
-      $("kpi-processing").innerText = (procRes?.[0]?.total || 0) + " đơn";
+      const kpiRevenue = $("kpi-revenue");
+      const kpiToday = $("kpi-today");
+      const kpiProcessing = $("kpi-processing");
+
+      if (kpiRevenue)
+        kpiRevenue.innerText = window.formatNumber(revenue) + " đ";
+      if (kpiToday) kpiToday.innerText = (todayRes?.[0]?.total || 0) + " đơn";
+      if (kpiProcessing)
+        kpiProcessing.innerText = (procRes?.[0]?.total || 0) + " đơn";
     } catch (err) {
       console.error("Lỗi tính toán KPI:", err);
+      throw err;
     }
   }
 

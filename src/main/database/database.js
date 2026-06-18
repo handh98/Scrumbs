@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require("electron");
+const { app } = require("electron");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const fs = require("fs");
@@ -17,6 +17,7 @@ if (!app.isPackaged) {
 }
 
 let db;
+let mainWindowRef = null;
 
 /**
  * Initializes connection to the SQLite database and sets performance PRAGMAs.
@@ -35,21 +36,53 @@ const connectDB = () => {
           db.run("PRAGMA synchronous = NORMAL");
           db.run("PRAGMA cache_size = -2000");
           db.run("PRAGMA temp_store = MEMORY");
+          db.run("PRAGMA wal_autocheckpoint = 1000");
+
+          // Check database integrity on startup
+          db.all("PRAGMA integrity_check", (err, rows) => {
+            if (err) {
+              console.error("⚠️ Không thể kiểm tra integrity:", err.message);
+            } else if (rows && rows[0] && rows[0].integrity_check !== "ok") {
+              console.error(
+                "🚨 Cảnh báo: Database có thể bị hỏng:",
+                rows[0].integrity_check,
+              );
+            } else {
+              console.log("✅ Database integrity check: OK");
+            }
+          });
+
           resolve();
         });
       }
     });
 
     db.on("error", (err) => {
+      console.error("🚨 Database Error:", err.message);
       if (err.message.includes("disk I/O error")) {
         console.error(
           "🚨 Lỗi I/O ổ đĩa nghiêm trọng (OS Error 1392 có thể liên quan):",
           err,
         );
       }
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send("db-error", {
+          message: err.message,
+          type: "error",
+          timestamp: new Date().toISOString(),
+        });
+      }
     });
   });
 };
+
+/**
+ * Register main window reference to avoid repeated lookups
+ * @param {BrowserWindow} win - The main application window
+ */
+function setMainWindow(win) {
+  mainWindowRef = win;
+}
 
 /**
  * Sends a database migration or status message to the UI.
@@ -57,11 +90,8 @@ const connectDB = () => {
  * @param {string} [type='info'] - Type of message (loading, success, error, info).
  */
 function sendStatusToUI(message, type = "info") {
-  const mainWin = BrowserWindow.getAllWindows().find(
-    (w) => !w.isDestroyed() && w.isVisible(),
-  );
-  if (mainWin) {
-    mainWin.webContents.send("migration-status", { message, type });
+  if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+    mainWindowRef.webContents.send("migration-status", { message, type });
   }
 }
 
@@ -70,44 +100,74 @@ function sendStatusToUI(message, type = "info") {
  */
 const dbManager = {
   /**
-   * Executes an INSERT, UPDATE, or DELETE statement.
+   * Executes an INSERT, UPDATE, or DELETE statement with optional timeout.
    * @param {string} sql - SQL query string.
    * @param {Array} [params=[]] - Query parameters.
+   * @param {number} [timeout=30000] - Query timeout in milliseconds.
    * @returns {Promise<{id: number, changes: number}>}
    */
-  run: (sql, params = []) => {
+  run: (sql, params = [], timeout = 30000) => {
     return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(
+          new Error(
+            `Query timeout after ${timeout}ms: ${sql.substring(0, 50)}...`,
+          ),
+        );
+      }, timeout);
+
       db.run(sql, params, function (err) {
+        clearTimeout(timeoutId);
         if (err) reject(err);
         else resolve({ id: this.lastID, changes: this.changes });
       });
     });
   },
   /**
-   * Executes a SELECT query that returns a single row.
+   * Executes a SELECT query that returns a single row with optional timeout.
    * @param {string} sql - SQL query string.
    * @param {Array} [params=[]] - Query parameters.
+   * @param {number} [timeout=10000] - Query timeout in milliseconds.
    * @returns {Promise<Object|undefined>}
    */
-  get: (sql, params = []) => {
+  get: (sql, params = [], timeout = 10000) => {
     return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(
+          new Error(
+            `Query timeout after ${timeout}ms: ${sql.substring(0, 50)}...`,
+          ),
+        );
+      }, timeout);
+
       db.get(sql, params, (err, row) => {
+        clearTimeout(timeoutId);
         if (err) reject(err);
         else resolve(row);
       });
     });
   },
   /**
-   * Executes a SELECT query that returns all matching rows.
+   * Executes a SELECT query that returns all matching rows with optional timeout.
    * @param {string} sql - SQL query string.
    * @param {Array} [params=[]] - Query parameters.
+   * @param {number} [timeout=30000] - Query timeout in milliseconds.
    * @returns {Promise<any[]>}
    */
-  all: function (sql, params = []) {
+  all: function (sql, params = [], timeout = 30000) {
     return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(
+          new Error(
+            `Query timeout after ${timeout}ms: ${sql.substring(0, 50)}...`,
+          ),
+        );
+      }, timeout);
+
       db.all(sql, params, (err, rows) => {
+        clearTimeout(timeoutId);
         if (err) reject(err);
-        else resolve(rows);
+        else resolve(rows || []);
       });
     });
   },
@@ -121,7 +181,8 @@ const dbManager = {
 };
 
 /**
- * Creates a timestamped backup of the current database file.
+ * Creates a timestamped backup of the current database file (only once per day).
+ * Cleans up backups older than 30 days.
  * @returns {Promise<void>}
  */
 async function createBackup() {
@@ -133,8 +194,27 @@ async function createBackup() {
   try {
     if (!fs.existsSync(dbPath)) return;
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-    fs.copyFileSync(dbPath, backupFilePath);
-    console.log(`✅ Đã tạo bản sao lưu: ${backupFileName}`);
+
+    // Check if backup already exists today
+    const today = new Date().toISOString().split("T")[0];
+    const backupFiles = fs.readdirSync(backupDir);
+    const existingBackupToday = backupFiles.some((f) => f.includes(today));
+
+    if (!existingBackupToday) {
+      fs.copyFileSync(dbPath, backupFilePath);
+      console.log(`✅ Đã tạo bản sao lưu: ${backupFileName}`);
+    }
+
+    // Clean up backups older than 30 days
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    backupFiles.forEach((file) => {
+      const filePath = path.join(backupDir, file);
+      const fileStats = fs.statSync(filePath);
+      if (fileStats.mtimeMs < thirtyDaysAgo) {
+        fs.unlinkSync(filePath);
+        console.log(`🗑️ Đã xóa bản sao lưu cũ: ${file}`);
+      }
+    });
   } catch (error) {
     console.error("❌ Lỗi sao lưu:", error.message);
   }
@@ -343,7 +423,7 @@ const initDB = async () => {
       FROM recipes WHERE id = NEW.id;
     END;`);
 
-    // Recipe Ingredients (FTS & Cost)
+    // Recipe Ingredients (FTS & Cost) - Optimized triggers
     db.run(`DROP TRIGGER IF EXISTS ri_ai`);
     db.run(`CREATE TRIGGER ri_ai AFTER INSERT ON recipe_ingredients BEGIN
       DELETE FROM recipes_fts WHERE rowid = NEW.recipe_id;
@@ -370,18 +450,15 @@ const initDB = async () => {
 
     db.run(`DROP TRIGGER IF EXISTS ri_au`);
     db.run(`CREATE TRIGGER ri_au AFTER UPDATE ON recipe_ingredients BEGIN
-      DELETE FROM recipes_fts WHERE rowid = OLD.recipe_id;
-      DELETE FROM recipes_fts WHERE rowid = NEW.recipe_id;
+      -- Optimized: Only delete/insert for affected recipes
+      DELETE FROM recipes_fts WHERE rowid IN (NEW.recipe_id, OLD.recipe_id);
       INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
       SELECT id, name, recipe_type, note,
              (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
-      FROM recipes WHERE id = NEW.recipe_id OR id = OLD.recipe_id;
+      FROM recipes WHERE id IN (NEW.recipe_id, OLD.recipe_id);
       UPDATE recipes SET total_cost = (
         SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = recipes.id
-      ) WHERE id = NEW.recipe_id;
-      UPDATE recipes SET total_cost = (
-        SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = recipes.id
-      ) WHERE id = OLD.recipe_id AND OLD.recipe_id != NEW.recipe_id;
+      ) WHERE id IN (NEW.recipe_id, OLD.recipe_id);
     END;`);
 
     // Ingredients Automation
@@ -443,30 +520,43 @@ const initDB = async () => {
       }
     });
 
+    // Seed default data after all tables are created
     seedDefaultData();
   });
 };
 
 /**
  * Populates the database with default categories if empty.
+ * Returns a Promise to ensure it completes before migration runs.
+ * @returns {Promise<void>}
  */
 const seedDefaultData = () => {
-  db.get("SELECT COUNT(*) as count FROM knowledge_categories", (err, row) => {
-    if (row && row.count === 0) {
-      const categories = [
-        ["Nguyên Liệu Cốt Lõi", "#ffe9db", "#bc5a1a"],
-        ["Chất Lên Men & Nở", "#e3f5e9", "#277c44"],
-        ["Kỹ Thuật & Quy Trình", "#e0f2fe", "#0369a1"],
-        ["Giải Mã Sự Cố", "#fce7f3", "#9d174d"],
-      ];
+  return new Promise((resolve) => {
+    db.get("SELECT COUNT(*) as count FROM knowledge_categories", (err, row) => {
+      if (row && row.count === 0) {
+        const categories = [
+          ["Nguyên Liệu Cốt Lõi", "#ffe9db", "#bc5a1a"],
+          ["Chất Lên Men & Nở", "#e3f5e9", "#277c44"],
+          ["Kỹ Thuật & Quy Trình", "#e0f2fe", "#0369a1"],
+          ["Giải Mã Sự Cố", "#fce7f3", "#9d174d"],
+        ];
 
-      const stmt = db.prepare(
-        "INSERT INTO knowledge_categories (name, bg_color, text_color) VALUES (?, ?, ?)",
-      );
-      categories.forEach((cat) => stmt.run(cat));
-      stmt.finalize();
-      console.log("🌱 Dữ liệu: Đã khởi tạo danh mục mặc định.");
-    }
+        const stmt = db.prepare(
+          "INSERT INTO knowledge_categories (name, bg_color, text_color) VALUES (?, ?, ?)",
+        );
+        categories.forEach((cat) => stmt.run(cat));
+        stmt.finalize((finalErr) => {
+          if (finalErr) {
+            console.error("❌ Error seeding default data:", finalErr.message);
+          } else {
+            console.log("🌱 Dữ liệu: Đã khởi tạo danh mục mặc định.");
+          }
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
   });
 };
 /**
@@ -926,23 +1016,14 @@ async function upgradeDatabase() {
       END;`);
 
       await dbManager.run(`CREATE TRIGGER ri_au AFTER UPDATE ON recipe_ingredients BEGIN
-        DELETE FROM recipes_fts WHERE rowid = OLD.recipe_id;
-        DELETE FROM recipes_fts WHERE rowid = NEW.recipe_id;
-
+        -- Optimized: Merge DELETE operations and use IN clause
+        DELETE FROM recipes_fts WHERE rowid IN (NEW.recipe_id, OLD.recipe_id);
         INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
         SELECT id, name, recipe_type, note, (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
-        FROM recipes WHERE id = NEW.recipe_id;
-
-        INSERT INTO recipes_fts(rowid, name, recipe_type, note, ingredients)
-        SELECT id, name, recipe_type, note, (SELECT GROUP_CONCAT(i.name, '|') FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = id)
-        FROM recipes WHERE id = OLD.recipe_id AND OLD.recipe_id != NEW.recipe_id;
-
+        FROM recipes WHERE id IN (NEW.recipe_id, OLD.recipe_id);
         UPDATE recipes SET total_cost = (
           SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = recipes.id
-        ) WHERE id = NEW.recipe_id;
-        UPDATE recipes SET total_cost = (
-          SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = recipes.id
-        ) WHERE id = OLD.recipe_id;
+        ) WHERE id IN (NEW.recipe_id, OLD.recipe_id);
       END;`);
 
       await dbManager.run("DELETE FROM schema_version");
@@ -1077,4 +1158,5 @@ module.exports = {
   get: dbManager.get,
   run: dbManager.run,
   dbManager,
+  setMainWindow,
 };

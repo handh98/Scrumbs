@@ -2,6 +2,18 @@
   const itemsPerPage = 6;
   const API = window.electronAPI;
 
+  const escHtml = (value) =>
+    String(value || "").replace(
+      /[&<>"]/g,
+      (ch) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+        })[ch],
+    );
+
   // Quy hoạch State vào một đối tượng duy nhất để dễ quản lý và debug
   window.orderState = {
     currentPage: 1,
@@ -51,6 +63,7 @@
       const paginationContainer = $("order-pagination");
       if (!tbody) return;
 
+      // Đồng bộ keyword từ UI
       const searchInput = $("order-search");
       if (searchInput) {
         window.orderState.keyword = searchInput.value.trim();
@@ -75,18 +88,18 @@
       let params = [];
 
       if (statusFilter !== "all") {
-        whereClause += " WHERE orders.status = ?";
+        whereClause += " WHERE o.status = ?";
         params.push(statusFilter);
       }
 
       if (window.orderState.startDate) {
         whereClause +=
-          (whereClause ? " AND" : " WHERE") + " orders.delivery_date >= ?";
+          (whereClause ? " AND" : " WHERE") + " o.delivery_date >= ?";
         params.push(window.orderState.startDate);
       }
       if (window.orderState.endDate) {
         whereClause +=
-          (whereClause ? " AND" : " WHERE") + " orders.delivery_date <= ?";
+          (whereClause ? " AND" : " WHERE") + " o.delivery_date <= ?";
         params.push(window.orderState.endDate);
       }
       if (kw) {
@@ -102,35 +115,29 @@
         params.push(searchQuery);
       }
 
-      const countRes = await API.db_query(
-        `SELECT COUNT(*) as total FROM orders LEFT JOIN customers ON orders.customer_id = customers.id ${whereClause}`,
-        params,
-      );
-      const totalItems = countRes[0].total;
-      const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+      const orderBy =
+        dateSort === "asc"
+          ? "ORDER BY o.delivery_date ASC"
+          : "ORDER BY o.delivery_date DESC";
 
-      if (window.orderState.currentPage > totalPages)
-        window.orderState.currentPage = totalPages;
-
-      const offset = (window.orderState.currentPage - 1) * itemsPerPage;
-      const query = `
-        SELECT orders.*, customers.name AS cust_name, customers.phone AS cust_phone
-        FROM orders
-        LEFT JOIN customers ON orders.customer_id = customers.id
+      const sql = `
+        SELECT o.*, c.name as cust_name, c.phone as cust_phone
+        FROM orders o
+        LEFT JOIN customers c ON o.customer_id = c.id
         ${whereClause}
-        ORDER BY orders.delivery_date ${dateSort.toUpperCase()}, orders.id DESC
-        LIMIT ? OFFSET ?`;
+        ${orderBy}
+      `;
 
-      const data = await API.db_query(query, [...params, itemsPerPage, offset]);
+      const orders = await API.db_query(sql, params).catch(() => []);
 
-      if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="no-data">Không tìm thấy đơn hàng nào khớp với bộ lọc.</td></tr>`;
+      if (!orders || orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="no-data text-center">Không có đơn hàng nào phù hợp.</td></tr>`;
         if (paginationContainer) paginationContainer.innerHTML = "";
         return;
       }
 
       const pagingResult = window.getPagination(
-        new Array(totalItems),
+        orders,
         itemsPerPage,
         window.orderState.currentPage,
         (newPage) => {
@@ -139,46 +146,50 @@
         },
       );
 
-      tbody.innerHTML = data
-        .map((item) => {
-          const isFinal =
-            item.status === "completed" || item.status === "cancelled";
-          const statusHtml = isFinal
-            ? `<span class="badge-${item.status}">${item.status === "completed" ? "Hoàn thành" : "Đã hủy"}</span>`
-            : `<select class="quick-status-select status-${item.status}" onchange="window.updateOrderStatusQuick(${item.id}, this.value)">
-              <option value="pending" ${item.status === "pending" ? "selected" : ""}>Chờ xử lý</option>
-              <option value="processing" ${item.status === "processing" ? "selected" : ""}>Đang làm</option>
-              <option value="completed">Hoàn thành</option>
-              <option value="cancelled">Đã hủy</option>
-            </select>`;
-
-          const note = item.note?.trim() || "...";
+      tbody.innerHTML = pagingResult.data
+        .map((o) => {
+          let itemsHtml = `<span class="text-muted">Lỗi dữ liệu đơn hàng</span>`;
+          try {
+            const items = o.items_json ? JSON.parse(o.items_json) : [];
+            itemsHtml = items
+              .map(
+                (i) =>
+                  `<span>${escHtml(i.base_name)} x${escHtml(i.qty)}</span>`,
+              )
+              .join("");
+          } catch (err) {
+            console.error("Lỗi parse items_json:", err);
+          }
 
           return `
           <tr>
-            <td class="text-center"><b>#${item.id}</b></td>
-            <td><b>${item.cust_name || "N/A"}</b><br><span>${item.cust_phone || ""}</span></td>
-            <td class="text-center">${item.delivery_date || "--"}</td>
-            <td class="text-center">${statusHtml}</td>
-            <td class="order-total-cell text-center" style="color: var(--color-highlight-danger);">${window.formatNumber(item.total_amount || 0)} đ</td>
-            <td class="text-center note-column has-tooltip" data-note="${note}">${note}</td>
-            <td class="text-center action-column">
-              <button class="btn-secondary ${isFinal ? "btn-view" : "btn-edit"}" title="${isFinal ? "Xem chi tiết" : "Sửa"}" onclick="window.editOrder(${item.id})">
-                <img src="src/renderer/assets/${isFinal ? "view.svg" : "edit.svg"}" class="icon" onerror="this.src='src/renderer/assets/edit.svg'" />
+            <td class="text-center"><b>#${o.id}</b></td>
+            <td class="text-center">${o.cust_name || "Khách vãng lai"}</td>
+            <td>${o.cust_phone || "---"}</td>
+            <td class="text-center">${itemsHtml}</td>
+            <td class="text-center"><b>${o.delivery_date}</b></td>
+            <td class="text-center"><span class="badge-${o.status}">${o.status}</span></td>
+            <td class="text-center text-primary"><b>${window.formatNumber(o.total_amount)} đ</b></td>
+            <td class="text-center">
+              <button class="btn-secondary" title="Xem chi tiết" onclick="window.openOrderDetail(${o.id})">
+                <img src="src/renderer/assets/view.svg" class="icon" />
               </button>
-              ${!isFinal ? `<button class="btn-secondary btn-delete" title="Hủy" onclick="window.cancelOrder(${item.id})"><img src="src/renderer/assets/trash.svg" class="icon" /></button>` : ""}
             </td>
-          </tr>`;
+          </tr>
+        `;
         })
         .join("");
 
       if (paginationContainer)
         paginationContainer.innerHTML = pagingResult.html;
-      window.TooltipComponent?.init();
     } catch (error) {
-      console.error("Lỗi nạp đơn hàng:", error);
+      console.error("Lỗi tải danh sách đơn hàng:", error);
+      window.showToast?.(
+        `Lỗi tải đơn hàng: ${error.message || "Không xác định"}`,
+        "error",
+      );
     } finally {
-      window.showLoader(false);
+      await window.showLoader(false);
     }
   };
 
@@ -218,6 +229,76 @@
       window.showToast?.(errorMsg, "error");
       window.loadOrders();
     }
+  };
+
+  window.openOrderDetail = async (id) => {
+    const modal = $("order-modal");
+    if (!modal) return;
+
+    modal.setAttribute("data-mode", "view");
+    modal.removeAttribute("data-editing-id");
+    modal.setAttribute("data-readonly", "true");
+
+    const btnCancel = modal.querySelector(".modal-footer .btn-secondary");
+    if (btnCancel) btnCancel.innerText = "Đóng";
+    if ($("btn-save-order")) $("btn-save-order").style.display = "none";
+
+    window.orderState.menuItems = await fetchAvailableMenuItems();
+    const data = await API.db_query(
+      `SELECT orders.*, customers.name AS cust_name, customers.phone AS cust_phone, customers.address AS cust_address FROM orders LEFT JOIN customers ON orders.customer_id = customers.id WHERE orders.id = ?`,
+      [id],
+    );
+
+    if (!data?.length) return;
+    const order = data[0];
+    window.orderState.selectedCustomerId = order.customer_id;
+
+    $("order-modal-title").innerText = "Chi Tiết Đơn Hàng";
+    [
+      "o-customer",
+      "o-phone",
+      "o-address",
+      "o-date",
+      "o-status",
+      "o-note",
+      "o-menu-search",
+      "o-item-qty",
+    ].forEach((elId) => {
+      if ($(elId)) $(elId).disabled = true;
+    });
+
+    if (document.querySelector(".btn-add-item"))
+      document.querySelector(".btn-add-item").disabled = true;
+
+    $("o-customer").value = order.cust_name || "";
+    $("o-phone").value = order.cust_phone || "";
+    $("o-address").value = order.cust_address || "";
+    $("o-date").value = order.delivery_date || "";
+    if ($("o-status")) $("o-status").value = order.status || "pending";
+    $("o-note").value = order.note || "";
+
+    window.orderState.items = [];
+    const parsedItems = order.items_json ? JSON.parse(order.items_json) : [];
+
+    for (const item of parsedItems) {
+      const allFillingsForMenuItem = await API.db_query(
+        `SELECT r.id, r.name, mf.is_default,
+            (CASE WHEN mf.price > 0 THEN mf.price
+                  ELSE (SELECT CEIL(SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id)
+            END) * mf.qty AS price
+           FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id
+           WHERE mf.menu_item_id = ?`,
+        [item.menu_id],
+      );
+
+      window.orderState.items.push({
+        ...item,
+        all_fillings: allFillingsForMenuItem,
+      });
+    }
+
+    window.renderOrderItems();
+    modal.classList.add("flex");
   };
 
   /**

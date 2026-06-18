@@ -8,7 +8,11 @@ const {
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { setupDatabase, dbManager } = require("./database/database.js");
+const {
+  setupDatabase,
+  dbManager,
+  setMainWindow,
+} = require("./database/database.js");
 const { autoUpdater } = require("electron-updater");
 const { registerDatabaseIPC } = require("./ipc/databaseIPC.js");
 const log = require("electron-log");
@@ -278,6 +282,7 @@ app.whenReady().then(async () => {
 
   createSplashWindow(); // Hiện màn hình chờ trước
   createMainWindow(); // Load dữ liệu ngầm
+  setMainWindow(mainWindow); // Register main window with database module
 });
 
 // Trình xử lý lấy version ứng dụng

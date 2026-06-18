@@ -188,14 +188,39 @@
     const price = window.unformatNumber(els.price.value);
     const qty = window.unformatNumber(els.qty.value);
 
-    if (!name) return window.showToast?.("Vui lòng nhập tên!", "warning");
+    // Validation
+    const errors = window.validateFields(
+      { name, price, qty, unit },
+      {
+        name: {
+          required: true,
+          minLength: 2,
+          maxLength: 100,
+          requiredMsg: "Tên nguyên liệu không được trống",
+          minLengthMsg: "Tên phải có ít nhất 2 ký tự",
+          maxLengthMsg: "Tên không được vượt quá 100 ký tự",
+        },
+        price: {
+          required: true,
+          min: 0,
+          minMsg: "Giá không được âm",
+        },
+        qty: {
+          required: !window.ingredientState.editingId,
+          min: window.ingredientState.editingId ? -1 : 0,
+          minMsg: "Số lượng phải lớn hơn 0",
+        },
+        unit: {
+          required: true,
+          requiredMsg: "Vui lòng chọn đơn vị",
+        },
+      },
+    );
 
-    // Chỉ bắt buộc nhập số lượng và tính unitPrice khi thêm mới
-    if (!window.ingredientState.editingId && qty <= 0) {
-      return window.showToast?.(
-        "Khối lượng/Số lượng phải lớn hơn 0!",
-        "warning",
-      );
+    if (Object.keys(errors).length > 0) {
+      const errorMsg = Object.values(errors).join("\n");
+      window.showToast?.(errorMsg, "warning");
+      return;
     }
 
     const unitPrice = qty > 0 ? parseFloat((price / qty).toFixed(2)) : 0;
@@ -249,7 +274,10 @@
       await loadIngredients();
     } catch (error) {
       console.error("Lỗi khi lưu DB:", error);
-      window.showToast?.("Lỗi cơ sở dữ liệu!", "error");
+      window.showToast?.(
+        `Lỗi cơ sở dữ liệu: ${error.message || "Không xác định"}`,
+        "error",
+      );
     } finally {
       await window.showLoader(false);
       // Đảm bảo mọi hiệu ứng UI đã hoàn tất trước khi reset form và focus
