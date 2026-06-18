@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22 # Cập nhật lên Node 22 LTS để tương thích với @electron/rebuild v4
+          node-version: 20 # Sử dụng Node 20 LTS để đảm bảo độ ổn định cao nhất cho việc upload metadata
           cache: "npm"
 
       - name: Install dependencies
@@ -32,5 +32,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run build -- --publish always
+        run: npm run build
         shell: pwsh
