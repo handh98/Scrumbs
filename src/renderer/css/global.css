@@ -744,6 +744,11 @@ textarea:disabled {
 .autocomplete-dropdown.show {
   display: block;
 }
+/* Mặc định ẩn các dropdown khi không có class .show */
+.picker-dropdown,
+.autocomplete-dropdown {
+  display: none;
+}
 .picker-item,
 .dropdown-item {
   display: flex;
@@ -758,6 +763,22 @@ textarea:disabled {
 .picker-item:hover,
 .dropdown-item:hover {
   background-color: var(--color-button-primary-hover);
+}
+/* Bỏ gạch ngang dưới item cuối cùng trong dropdown cho gọn gàng */
+.picker-item:last-child,
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+/* Đồng bộ size input/select trong bảng đặt bánh (modal order) */
+#order-items-body input,
+#order-items-body select,
+.order-item-input {
+  padding: 6px 8px;
+  font-size: var(--font-size-sm, 14px);
+  border-radius: var(--radius-sm, 4px);
+  height: 34px;
+  box-sizing: border-box;
 }
 .picker-item-name {
   font-weight: bold;

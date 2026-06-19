@@ -135,7 +135,6 @@
 
       // Mở modal
       if ($("import-modal")) {
-        //
         $("import-modal").classList.add("flex");
         window.initImportModalInputFormatters(); // Kích hoạt formatter ngay khi mở
       }

@@ -6,6 +6,9 @@
   const DEFAULT_TEXT_COLOR = "#bc5a1a";
   const API = window.electronAPI;
 
+  // Nếu $ chưa được định nghĩa ở global, hãy khai báo dự phòng để tránh lỗi crash script
+  const $ = window.$ || ((id) => document.getElementById(id));
+
   // --- KnowledgeService: Database Interactions ---
   const KnowledgeService = {
     async fetchCategories() {
@@ -60,7 +63,6 @@
       const filterBar = $("knowledge-cat-filters");
       if (!filterBar) return;
 
-      // Đảm bảo container sử dụng cấu trúc tab-container để các nút hiển thị nằm ngang (flex-row)
       filterBar.classList.add("tab-container");
 
       const isAllActive = selectedId === "ALL" ? "active" : "";
@@ -72,7 +74,7 @@
           const isActive = String(selectedId) === String(c.id) ? "active" : "";
           return `<button class="tab-btn ${isActive}"
              style="background: ${c.bg_color}; color: ${c.text_color};"
-             onclick="window.KnowledgeController.filterByCategory(${c.id})">${c.name}</button>`; // Giữ lại màu động
+             onclick="window.KnowledgeController.filterByCategory(${c.id})">${c.name}</button>`;
         })
         .join("");
 
@@ -133,21 +135,29 @@
 
       $("view-k-content").innerHTML = contentHtml;
 
+      // Sửa lỗi: Cần tắt modal hiện tại trước, có thể dùng setTimeout nhỏ để UX mượt hơn
       $("view-k-btn-edit").onclick = () => {
-        this.hideDetailModal();
-        window.KnowledgeController.openForm("edit", article.id);
+        KnowledgeUI.hideDetailModal(); // Dùng object cụ thể để tránh lỗi mất context 'this'
+        setTimeout(() => {
+          window.KnowledgeController.openForm("edit", article.id);
+        }, 150);
       };
 
       $("view-k-btn-delete").onclick = () => {
-        this.hideDetailModal();
-        window.KnowledgeController.deleteArticle(article.id, article.title);
+        KnowledgeUI.hideDetailModal();
+        setTimeout(() => {
+          window.KnowledgeController.deleteArticle(article.id, article.title);
+        }, 150);
       };
 
-      $("knowledge-detail-modal").classList.add("flex");
+      const modal = $("knowledge-detail-modal");
+      modal.style.display = ""; // Reset inline style nếu có
+      modal.classList.add("flex");
     },
 
     hideDetailModal() {
-      $("knowledge-detail-modal").style.display = "none";
+      // Sửa cách đóng modal: Dùng remove class flex thay vì display: none
+      $("knowledge-detail-modal").classList.remove("flex");
     },
 
     showFormModal(mode, article = null) {
@@ -168,11 +178,13 @@
         }, 20);
       }
 
+      modal.style.display = ""; // Reset inline style nếu có
       modal.classList.add("flex");
     },
 
     hideFormModal() {
-      $("knowledge-modal").style.display = "none";
+      // Sửa cách đóng modal: Dùng remove class flex thay vì display: none
+      $("knowledge-modal").classList.remove("flex");
     },
   };
 
@@ -402,9 +414,9 @@
     KnowledgeController.deleteArticle(id, title);
 
   window.openCategoryModal = () => {
-    //
     resetCategoryForm();
     loadCategoryList();
+    $("category-modal").style.display = "";
     $("category-modal").classList.add("flex");
   };
   window.closeCategoryModal = () => {

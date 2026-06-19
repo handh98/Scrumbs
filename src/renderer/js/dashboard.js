@@ -97,7 +97,7 @@
       const orders = await API.db_query(sql, [todayStr, tomorrowStr]);
 
       if (!orders || orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center no-data">✨ Thảnh thơi! Hôm nay và ngày mai chưa có đơn bánh nào cần giao.</td></tr>`; //
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center no-data">✨ Thảnh thơi! Hôm nay và ngày mai chưa có đơn bánh nào cần giao.</td></tr>`;
         return;
       }
 
@@ -105,7 +105,7 @@
         .map((order) => {
           let itemsHtml = `<span class="text-muted">Lỗi dữ liệu bánh</span>`;
           try {
-            const items = order.items_json ? JSON.parse(order.items_json) : []; //
+            const items = order.items_json ? JSON.parse(order.items_json) : [];
             itemsHtml = items
               .map((i) => `<span>${i.base_name} x${i.qty}</span>`)
               .join("");
@@ -210,7 +210,7 @@
         } catch (err) {
           console.error("Lỗi parse items_json trong shortages:", err);
         }
-      }); //
+      });
 
       const requirements = {}; // { ingredient_id: { qtyNeeded, name, unit } }
 
@@ -479,7 +479,6 @@
   };
 
   window.editStickyNote = async (id, oldContent) => {
-    //
     if (typeof window.showPrompt !== "function") {
       console.error("Lỗi: window.showPrompt chưa được định nghĩa.");
       return;

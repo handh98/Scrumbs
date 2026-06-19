@@ -116,8 +116,8 @@
       inputElem.value,
       type,
     );
-    container.querySelector(".picker-dropdown").classList.add("block"); //
-    container.querySelector(".picker-dropdown").classList.remove("hidden"); //
+    container.querySelector(".picker-dropdown").classList.add("block");
+    container.querySelector(".picker-dropdown").classList.remove("hidden");
   }, 300);
 
   window.hidePickerDelay = (inputElem) => {
@@ -147,8 +147,8 @@
       row.querySelector(".unit-label").innerText = unit;
     }
 
-    container.querySelector(".picker-dropdown").classList.add("hidden"); //
-    container.querySelector(".picker-dropdown").classList.remove("block"); //
+    container.querySelector(".picker-dropdown").classList.add("hidden");
+    container.querySelector(".picker-dropdown").classList.remove("block");
 
     window.calculateTotal();
   };

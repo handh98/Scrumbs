@@ -2,7 +2,7 @@
 window.$ = (id) => document.getElementById(id);
 window.$$ = (sel) => document.querySelectorAll(sel);
 
-/** Escape HTML characters */
+/** Escape HTML characters for text content */
 window.escHtml = (value) =>
   String(value || "").replace(
     /[&<>"]/g,
@@ -12,6 +12,20 @@ window.escHtml = (value) =>
         "<": "&lt;",
         ">": "&gt;",
         '"': "&quot;",
+      })[ch],
+  );
+
+/** Escape characters for HTML attribute values */
+window.escAttr = (value) =>
+  String(value || "").replace(
+    /[&<>"']/g,
+    (ch) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
       })[ch],
   );
 
@@ -93,7 +107,7 @@ window.showConfirm = async (title, message, options = {}) => {
     if (progressWrapper)
       progressWrapper.style.display = options.showProgress ? "block" : "none";
 
-    modal.classList.add("flex"); //
+    modal.classList.add("flex");
     modal.style.pointerEvents = "auto"; // Chỉ chặn click khi modal thực sự hiện lên
 
     if (confirmBtn) {
@@ -615,7 +629,6 @@ function toggleUpdateIndicator(show, percent = 0) {
       indicator.className = "update-bg-badge";
       indicator.innerHTML = `<div class="spinner-mini"></div><div class="update-progress-container"><div class="update-progress-fill"></div></div><span class="percent-text">0%</span>`;
       indicator.onclick = () => {
-        //
         window.isUpdateModalDismissed = false;
         indicator.classList.add("hidden");
         indicator.classList.remove("flex");

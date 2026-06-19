@@ -1,5 +1,5 @@
 (function () {
-  const itemsPerPage = 5;
+  const itemsPerPage = 4;
   const API = window.electronAPI;
   let recipePlaceholderUrl = null;
 
@@ -23,24 +23,34 @@
   };
 
   // Helpers for safe HTML/attribute/JS insertion
-  const escAttr = (s) =>
-    String(s || "").replace(
-      /[&<>"']/g,
-      (ch) =>
-        ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;",
-        })[ch],
-    );
+  const escAttr = window.escAttr;
 
   const jsQuote = (s) =>
     String(s || "")
       .replace(/\\/g, "\\\\")
       .replace(/'/g, "\\'")
       .replace(/\n/g, "\\n");
+
+  function hasRecipeImage() {
+    return !!(
+      window.recipeState.currentImageFile ||
+      window.recipeState.currentViewedRecipe?.image_path
+    );
+  }
+
+  function updateRecipeImagePreview(isView) {
+    const imgPreview = $("recipe-image-preview");
+    const imgContainer = $("recipe-image-preview-container");
+    if (!imgPreview || !imgContainer) return;
+
+    const showContainer = isView || hasRecipeImage();
+    imgContainer.style.display = showContainer ? "flex" : "none";
+    imgContainer.classList.toggle("hidden", !showContainer);
+
+    if (isView && !hasRecipeImage() && recipePlaceholderUrl) {
+      imgPreview.src = recipePlaceholderUrl;
+    }
+  }
 
   /**
    * Quản lý trạng thái hiển thị các thành phần trong Modal dựa trên Mode
@@ -112,6 +122,8 @@
     if (btnClearImage) {
       btnClearImage.style.display = isView ? "none" : "flex";
     }
+
+    updateRecipeImagePreview(isView);
   }
 
   async function loadRecipes() {
@@ -276,6 +288,11 @@
   }, 250);
 
   async function openRecipeModal(mode, recipeId = null) {
+    if (!recipePlaceholderUrl) {
+      const placeholderPath = await API.getAssetPath("placeholder.png");
+      recipePlaceholderUrl = `app-img:///${placeholderPath.replace(/\\/g, "/")}`;
+    }
+
     window.recipeState.currentModalMode = mode || "view";
     window.recipeState.currentId = recipeId;
     window.recipeState.scaleFactor = 1;
@@ -302,8 +319,6 @@
       $("selected-ing-unit-lbl").innerText = "Đơn vị: --";
 
     if ($("recipe-image-preview")) $("recipe-image-preview").src = "";
-    if ($("recipe-image-preview-container"))
-      $("recipe-image-preview-container").style.display = "none";
 
     const modalTitle = $("modal-title");
     if (modalTitle) {
@@ -327,7 +342,7 @@
     await window.showLoader(true);
     try {
       window.recipeState.cachedIngredients = await API.db_query(
-        "SELECT id, name, unit, unit_price FROM ingredients WHERE is_active = 1 AND type = 'ingredient' ORDER BY name ASC", //
+        "SELECT id, name, unit, unit_price FROM ingredients WHERE is_active = 1 AND type = 'ingredient' ORDER BY name ASC",
       );
 
       if (recipeId) {
@@ -347,16 +362,10 @@
           $("rec-note").value = recipe.note || "";
 
           const imgPreview = $("recipe-image-preview");
-          const imgContainer = $("recipe-image-preview-container");
-          if (imgPreview && imgContainer) {
-            if (recipe.image_path) {
-              imgPreview.src = `app-img:///${recipe.image_path.replace(/\\/g, "/")}`;
-              imgContainer.classList.add("flex");
-              imgContainer.classList.remove("hidden");
-            } else {
-              imgContainer.classList.add("hidden");
-              imgContainer.classList.remove("flex");
-            }
+          if (imgPreview) {
+            imgPreview.src = recipe.image_path
+              ? `app-img:///${recipe.image_path.replace(/\\/g, "/")}`
+              : "";
           }
 
           let stepsLoaded = false;
@@ -421,7 +430,7 @@
     if (!tbody) return;
 
     if (!window.recipeState.ingredientsList?.length) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center p-lg" style="color: var(--neutral-700);">Chưa có nguyên liệu nào được thêm!</td></tr>`; //
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center p-lg" style="color: var(--neutral-700);">Chưa có nguyên liệu nào được thêm!</td></tr>`;
       if (totalDisplay) totalDisplay.innerText = "0 đ";
       return;
     }
@@ -430,7 +439,7 @@
     tbody.innerHTML = window.recipeState.ingredientsList
       .map((ing, idx) => {
         const displayQty = ing.qty * window.recipeState.scaleFactor;
-        const cost = displayQty * ing.unit_price; //
+        const cost = displayQty * ing.unit_price;
         totalCost += cost;
         return `
         <tr>
@@ -699,7 +708,7 @@
     if (!target) return;
 
     window.recipeState.selectedPickerIng = target;
-    if ($("ing-search-picker")) $("ing-search-picker").value = target.name; //
+    if ($("ing-search-picker")) $("ing-search-picker").value = target.name;
     $("selected-ing-unit-lbl").innerText = `Đơn vị: ${target.unit}`;
     if ($("ing-picker-dropdown"))
       $("ing-picker-dropdown").style.display = "none";
@@ -884,8 +893,8 @@
       const imgContainer = $("recipe-image-preview-container");
 
       if (imgContainer) {
-        //
         imgContainer.style.display = "flex";
+        imgContainer.classList.remove("hidden");
         imgContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
 
@@ -953,12 +962,12 @@
       imgPreview.onerror = null; // Gỡ bỏ listener để không kích hoạt cảnh báo lỗi khi gán src rỗng
       imgPreview.src = "";
     }
-    const imgContainer = $("recipe-image-preview-container");
-    if (imgContainer) imgContainer.classList.add("hidden");
-    if (imgContainer) imgContainer.classList.remove("flex");
+
     const fileInput = $("recipe-image-upload");
     if (fileInput) fileInput.value = ""; // Xóa file đã chọn
-    window.recipeState.currentImageFile = null; // Reset biến lưu file
+    window.recipeState.currentImageFile = null;
+
+    toggleInputStates();
   }
 
   async function exportRecipeToPdf() {

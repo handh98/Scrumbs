@@ -28,6 +28,7 @@ module.exports = [
         ...globals.node, // Node.js global variables (e.g., process, require)
         $: "readonly", // Custom global variable $
         $$: "readonly", // Custom global variable $$
+        escAttr: "readonly", // Custom global variable escAttr
         navigate: "readonly", // Custom global variable navigate
       },
     },

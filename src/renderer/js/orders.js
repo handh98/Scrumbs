@@ -1,18 +1,7 @@
 (function () {
   const itemsPerPage = 6;
   const API = window.electronAPI;
-
-  const escHtml = (value) =>
-    String(value || "").replace(
-      /[&<>"]/g,
-      (ch) =>
-        ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-        })[ch],
-    );
+  const escHtml = window.escHtml;
 
   // Quy hoạch State vào một đối tượng duy nhất để dễ quản lý và debug
   window.orderState = {
@@ -24,10 +13,8 @@
     selectedMenuPicker: null, // Món bánh đang chọn trong picker
     currentItemFillings: [], // Các loại nhân của món bánh đang chọn
     customersCache: null, // Cache khách hàng cho autocomplete
-    startDate: "", // Ngày bắt đầu lọc
-    endDate: "", // Ngày kết thúc lọc
-    // currentOrderId: null, // ID đơn hàng đang xem/sửa (có thể thêm nếu cần)
-    // currentOrderData: null, // Dữ liệu đơn hàng đang xem/sửa (có thể thêm nếu cần)
+    startDate: "",
+    endDate: "",
   };
 
   /**
@@ -164,15 +151,17 @@
           return `
           <tr>
             <td class="text-center"><b>#${o.id}</b></td>
-            <td class="text-center">${o.cust_name || "Khách vãng lai"}</td>
-            <td>${o.cust_phone || "---"}</td>
-            <td class="text-center">${itemsHtml}</td>
+            <td>
+              <div><b>${o.cust_name || "Khách vãng lai"}</b></div>
+              <div class="text-muted" style="font-size: 12px;">${o.cust_phone || "---"}</div>
+            </td>
             <td class="text-center"><b>${o.delivery_date}</b></td>
             <td class="text-center"><span class="badge-${o.status}">${o.status}</span></td>
             <td class="text-center text-primary"><b>${window.formatNumber(o.total_amount)} đ</b></td>
+            <td class="text-center note-column">${o.note || "---"}</td>
             <td class="text-center">
-              <button class="btn-secondary" title="Xem chi tiết" onclick="window.openOrderDetail(${o.id})">
-                <img src="src/renderer/assets/view.svg" class="icon" />
+              <button class="btn-secondary" title="Chỉnh sửa đơn" onclick="window.openOrderEdit(${o.id})">
+                <img src="src/renderer/assets/edit.svg" class="icon" />
               </button>
             </td>
           </tr>
@@ -300,7 +289,67 @@
     window.renderOrderItems();
     modal.classList.add("flex");
   };
-
+  /** Opens the order modal in 'Edit' mode — inputs enabled, nút Lưu hiển thị. */
+  window.openOrderEdit = async (id) => {
+    const modal = $("order-modal");
+    if (!modal) return;
+    modal.setAttribute("data-mode", "edit");
+    modal.setAttribute("data-editing-id", String(id));
+    modal.removeAttribute("data-readonly");
+    const btnCancel = modal.querySelector(".modal-footer .btn-secondary");
+    if (btnCancel) btnCancel.innerText = "Hủy";
+    if ($("btn-save-order")) $("btn-save-order").style.display = "block";
+    [
+      "o-customer",
+      "o-phone",
+      "o-address",
+      "o-date",
+      "o-status",
+      "o-note",
+      "o-menu-search",
+      "o-item-qty",
+    ].forEach((elId) => {
+      if ($(elId)) $(elId).disabled = false;
+    });
+    if (document.querySelector(".btn-add-item"))
+      document.querySelector(".btn-add-item").disabled = false;
+    window.orderState.menuItems = await fetchAvailableMenuItems();
+    const data = await API.db_query(
+      `SELECT orders.*, customers.name AS cust_name, customers.phone AS cust_phone, customers.address AS cust_address
+         FROM orders LEFT JOIN customers ON orders.customer_id = customers.id
+         WHERE orders.id = ?`,
+      [id],
+    );
+    if (!data?.length) return;
+    const order = data[0];
+    window.orderState.selectedCustomerId = order.customer_id;
+    $("order-modal-title").innerText = "Chỉnh sửa đơn hàng";
+    $("o-customer").value = order.cust_name || "";
+    $("o-phone").value = order.cust_phone || "";
+    $("o-address").value = order.cust_address || "";
+    $("o-date").value = order.delivery_date || "";
+    if ($("o-status")) $("o-status").value = order.status || "pending";
+    $("o-note").value = order.note || "";
+    window.orderState.items = [];
+    const parsedItems = order.items_json ? JSON.parse(order.items_json) : [];
+    for (const item of parsedItems) {
+      const allFillingsForMenuItem = await API.db_query(
+        `SELECT r.id, r.name, mf.is_default,
+            (CASE WHEN mf.price > 0 THEN mf.price
+                  ELSE (SELECT CEIL(SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id)
+            END) * mf.qty AS price
+           FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id
+           WHERE mf.menu_item_id = ?`,
+        [item.menu_id],
+      );
+      window.orderState.items.push({
+        ...item,
+        all_fillings: allFillingsForMenuItem,
+      });
+    }
+    window.renderOrderItems();
+    modal.classList.add("flex");
+  };
   /**
    * Automatically deducts stock from inventory using FIFO logic based on order items.
    * @param {number} orderId
@@ -478,6 +527,19 @@
     window.orderState.selectedCustomerId = id;
     $("customer-dropdown").classList.remove("show");
   };
+  /**
+   * Ẩn dropdown khách hàng khi user click ra ngoài input.
+   * Cho phép click vào item trong dropdown trước khi blur (mousedown preventDefault).
+   */
+  document.addEventListener("DOMContentLoaded", () => {
+    const custInput = $("o-customer");
+    if (custInput && !$("o-customer").dataset.blurBound) {
+      $("o-customer").dataset.blurBound = "1";
+      custInput.addEventListener("blur", () => {
+        setTimeout(() => $("customer-dropdown")?.classList.remove("show"), 150);
+      });
+    }
+  });
 
   /** Handles menu item search input for order creation. */
   window.onMenuSearchInput = window.debounce(() => {
@@ -947,12 +1009,11 @@
         );
 
         window.orderState.items.push({
-          //
           ...item,
           all_fillings: allFillingsForMenuItem,
         });
       }
-      window.renderOrderItems(); //
+      window.renderOrderItems();
       modal.classList.add("flex");
     }
   };

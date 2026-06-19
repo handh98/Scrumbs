@@ -2,7 +2,7 @@
 
 #recipe-modal .modal-card {
   width: 98%;
-  max-width: 1100px; /* Tăng thêm chút không gian cho layout 2 cột */
+  max-width: 1240px; /* Mở rộng modal để cột danh sách nguyên liệu thoáng hơn */
   margin: auto;
   box-sizing: border-box;
 }
@@ -146,7 +146,8 @@
   background-color: var(--color-white);
   padding: var(--space-xxl);
   display: grid;
-  grid-template-columns: 420px 1fr;
+  /* Cột trái 480px (meta + ảnh + thanh thêm nguyên liệu), cột phải 1.4fr cho bảng nguyên liệu + note */
+  grid-template-columns: 480px minmax(0, 1.4fr);
   gap: var(--space-md) 50px;
   align-items: start;
   animation: fadeInEffect 0.4s ease-out;
@@ -170,13 +171,6 @@
   border-left: 5px solid var(--color-interactive-primary);
   box-shadow: var(--shadow-sm);
   border-top: 1px dashed var(--color-border-base);
-}
-
-/* Đường kẻ mờ phân cách tinh tế giữa bảng nguyên liệu và ghi chú */
-#recipe-modal .note-group::after {
-  content: "";
-  position: absolute;
-  display: none; /* Ẩn đường kẻ cũ vì đã thay bằng border-top */
 }
 
 #recipe-modal .note-group::before {
@@ -264,7 +258,9 @@
 
 /* Default step-textarea styling (editable) */
 #recipe-modal .step-textarea {
+  flex: 1;
   border: 2px solid var(--color-border-base);
+  border-radius: var(--radius-md);
   background: var(--color-white);
   padding: var(--space-sm) var(--space-md);
   color: var(--color-primary-text);
@@ -359,12 +355,6 @@
   color: var(--color-primary-text);
 }
 
-/* Ẩn các phần tử rác và thông số tiền trong chế độ nấu ăn */
-#recipe-modal .cost-summary-row,
-#recipe-modal .modal-body > h4 {
-  /* These will be hidden by .view-mode */
-}
-
 #recipe-modal #steps-list-container {
   grid-area: steps-area; /* Gán cho khu vực mới để nó có thể kéo dài */
   display: flex;
@@ -388,21 +378,6 @@
   transform: translateX(8px);
 }
 
-#recipe-modal .step-textarea {
-  flex: 1;
-  border: 2px solid var(--color-border-base); /* Default editable style */
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--font-size-base);
-  color: var(--color-primary-text);
-  resize: vertical;
-  field-sizing: content;
-  max-width: 100%;
-  min-height: 40px;
-  background-color: var(--color-white);
-  transition: border-color 0.2s;
-}
-
 /* Hàng chứa các thông tin phụ: Phân loại, Thời gian, Định lượng */
 #recipe-modal .recipe-meta-row {
   display: flex !important;
@@ -412,11 +387,20 @@
   width: 100%;
   align-items: flex-end; /* Căn cho các ô input đều chân nhau */
 }
-
 #recipe-modal .recipe-meta-row .form-group {
   margin-bottom: 0 !important;
   flex: 1;
   min-width: 140px; /* Đảm bảo các ô input không bị quá hẹp */
+}
+/* Căn các input/select trong ingredient-picker-row theo chân để đồng bộ với nút + Thêm */
+.ingredient-picker-row {
+  align-items: flex-end;
+}
+
+/* Nút trong ingredient-picker-row: canh theo chân (flex-end) để ngang hàng với input, không bị kéo giãn full height */
+.ingredient-picker-row .btn {
+  align-self: flex-end;
+  white-space: nowrap;
 }
 
 /* Căn chỉnh Icon trong nhãn label */
@@ -529,8 +513,10 @@
   opacity: 1 !important;
   resize: none !important;
   outline: none !important;
-  overflow: hidden !important;
-  field-sizing: unset !important;
+  field-sizing: content !important;
+  min-height: 40px;
+  word-break: break-word;
+  overflow-wrap: break-word;
   transition: var(--transition-base);
   margin: 4px 0;
 }
