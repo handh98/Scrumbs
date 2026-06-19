@@ -82,41 +82,18 @@
       $("export-pdf-btn").classList.toggle("hidden", !isView);
     }
 
-    // Ẩn/hiện bộ chọn nguyên liệu và nút thêm bước
-    [$("ing-picker-section"), $("btn-add-step")].forEach((el) => {
-      if (el) {
-        el.classList.toggle("hidden", isView);
-        el.classList.toggle("inline-flex", !isView && el.id === "btn-add-step");
-        el.classList.toggle("block", !isView && el.id === "ing-picker-section");
-      }
-    });
+    // Vô hiệu hóa toàn bộ input trong View Mode để CSS có thể style chúng như văn bản tĩnh
+    const inputsToToggle = [
+      $("rec-name"),
+      $("rec-cook-time"),
+      $("rec-output-text"),
+      $("rec-type"),
+      $("rec-note"),
+    ];
 
-    [
-      "rec-name",
-      "rec-cook-time",
-      "rec-output-text",
-      "rec-note",
-      "rec-type",
-    ].forEach((id) => {
-      const input = $(id);
-      if (!input) return;
-
-      const groupWrapper =
-        input.closest(".form-group") || input.closest(".note-group");
-      if (!groupWrapper) return;
-
-      if (isView && id === "rec-name") {
-        input.disabled = true;
-        input.style.pointerEvents = "none";
-        input.style.border = "none";
-        input.style.background = "transparent";
-        input.style.boxShadow = "none";
-        input.style.padding = "0";
-      } else {
-        input.disabled = isView && id !== "rec-output-text";
-        input.style.pointerEvents = "auto";
-        input.style.background = ""; // Reset style từ view-mode
-        input.style.padding = "";
+    inputsToToggle.forEach((input) => {
+      if (input) {
+        input.disabled = isView;
       }
     });
 
@@ -124,6 +101,17 @@
     modal.querySelectorAll("#steps-list-container textarea").forEach((ta) => {
       ta.disabled = isView;
     });
+
+    // Image upload input is disabled in view mode
+    const recipeImageUpload = $("recipe-image-upload");
+    if (recipeImageUpload) {
+      recipeImageUpload.disabled = isView;
+    }
+    // Clear image button is also hidden in view mode
+    const btnClearImage = $(".btn-clear-image");
+    if (btnClearImage) {
+      btnClearImage.style.display = isView ? "none" : "flex";
+    }
   }
 
   async function loadRecipes() {
@@ -358,18 +346,11 @@
             parseInt($("rec-output-text").value) || 1;
           $("rec-note").value = recipe.note || "";
 
-          const pPath = await API.getAssetPath("placeholder.png");
-          const placeholderUrl = `app-img:///${pPath.replace(/\\/g, "/")}`;
-
           const imgPreview = $("recipe-image-preview");
           const imgContainer = $("recipe-image-preview-container");
           if (imgPreview && imgContainer) {
             if (recipe.image_path) {
               imgPreview.src = `app-img:///${recipe.image_path.replace(/\\/g, "/")}`;
-              imgContainer.classList.add("flex");
-              imgContainer.classList.remove("hidden");
-            } else if (window.recipeState.currentModalMode === "view") {
-              imgPreview.src = placeholderUrl;
               imgContainer.classList.add("flex");
               imgContainer.classList.remove("hidden");
             } else {
@@ -808,7 +789,7 @@
 
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
-    deleteButton.className = "btn-delete-step edit-visible";
+    deleteButton.className = "btn-delete-row edit-visible";
     deleteButton.innerText = "❌";
     deleteButton.onclick = function () {
       this.parentElement.remove();

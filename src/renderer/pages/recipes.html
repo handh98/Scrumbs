@@ -84,164 +84,180 @@
     </div>
 
     <div class="modal-body">
-      <!-- Tên bánh (Để riêng một hàng cho rộng rãi) -->
-      <div class="form-group">
-        <label for="rec-name"
-          >Tên bánh / Công thức <span class="text-danger">*</span></label
-        >
-        <input
-          type="text"
-          id="rec-name"
-          placeholder="Ví dụ: Bánh Mì Hoa Cúc, Bánh Bông Lan..."
-        />
-      </div>
-
-      <!-- Upload ảnh (Chỉ hiện khi Edit/Add) -->
-      <div class="form-group image-upload-group edit-visible">
-        <label>📸 Thêm ảnh minh họa:</label>
-        <input
-          type="file"
-          id="recipe-image-upload"
-          accept="image/*"
-          onchange="window.handleImageSelect(event)"
-        />
-      </div>
-
-      <!-- Vùng hiển thị ảnh preview (Nằm dưới input chọn ảnh) -->
-      <div
-        id="recipe-image-preview-container"
-        class="image-preview-container"
-        style="display: none"
-      >
-        <img id="recipe-image-preview" src="" alt="Ảnh công thức" />
-        <button
-          type="button"
-          id="btn-clear-image"
-          class="btn-clear-image edit-visible"
-          onclick="window.clearRecipeImage()"
-          title="Xóa ảnh"
-        >
-          ❌
-        </button>
-      </div>
-
-      <!-- Hàng chứa thông tin phụ: Phân loại, Thời gian, Định lượng -->
-      <div class="recipe-meta-row">
-        <!-- Phân loại -->
-        <div class="form-group">
-          <label for="rec-type">📁 Phân loại:</label>
-          <select id="rec-type">
-            <option value="general">Chung</option>
-            <option value="crust">Vỏ bánh</option>
-            <option value="filling">Nhân bánh</option>
-          </select>
-        </div>
-
-        <!-- Thời gian -->
-        <div class="form-group">
-          <label for="rec-cook-time">🕒 Thời gian (phút):</label>
-          <input type="number" id="rec-cook-time" min="0" placeholder="60" />
-        </div>
-
-        <!-- Định lượng -->
-        <div class="form-group">
-          <label for="rec-output-text">⚖️ Định lượng (cái):</label>
+      <!-- CỘT TRÁI: Ảnh + Nguyên liệu + Ghi chú -->
+      <div class="recipe-left-col">
+        <!-- Upload ảnh (Chỉ hiện khi Edit/Add) -->
+        <div class="form-group image-upload-group edit-visible">
+          <label>📸 Thêm ảnh minh họa:</label>
           <input
-            type="number"
-            id="rec-output-text"
-            min="1"
-            placeholder="10"
-            oninput="window.updateRecipeScale(this.value)"
+            type="file"
+            id="recipe-image-upload"
+            accept="image/*"
+            onchange="window.handleImageSelect(event)"
           />
         </div>
+
+        <!-- Vùng hiển thị ảnh preview -->
+        <div
+          id="recipe-image-preview-container"
+          class="image-preview-container"
+          style="display: none"
+        >
+          <img id="recipe-image-preview" src="" alt="Ảnh công thức" />
+          <button
+            type="button"
+            id="btn-clear-image"
+            class="btn-clear-image edit-visible"
+            onclick="window.clearRecipeImage()"
+            title="Xóa ảnh"
+          >
+            ❌
+          </button>
+        </div>
+
+        <!-- Tiêu đề danh sách nguyên liệu -->
+        <label class="section-label">Danh sách nguyên liệu tiêu hao</label>
+
+        <!-- Thanh thêm nguyên liệu (Chỉ hiện khi Edit/Add) -->
+        <div class="ingredient-picker-row edit-visible">
+          <div class="form-group picker-container">
+            <label for="ing-search-picker">Tìm chọn nguyên liệu</label>
+            <input
+              type="text"
+              id="ing-search-picker"
+              class="picker-input"
+              placeholder="🔍 Nhập tên nguyên liệu..."
+              onfocus="window.showAllIngredientsPicker()"
+              oninput="window.filterIngredientPicker()"
+              autocomplete="off"
+            />
+            <div
+              id="ing-picker-dropdown"
+              class="picker-dropdown"
+              onscroll="window.handlePickerScroll(event)"
+            ></div>
+          </div>
+
+          <div class="form-group col-qty-picker">
+            <label for="ing-qty-picker">Số lượng tiêu hao</label>
+            <input
+              type="number"
+              id="ing-qty-picker"
+              min="0"
+              step="any"
+              placeholder="0.00"
+            />
+          </div>
+
+          <div class="form-group col-unit-lbl">
+            <label id="selected-ing-unit-lbl" class="unit-badge-label"
+              >Đơn vị: --</label
+            >
+          </div>
+          <button
+            type="button"
+            class="btn-primary btn-add-ing"
+            onclick="window.addIngredientToRecipe()"
+          >
+            + Thêm
+          </button>
+        </div>
+
+        <!-- Bảng nguyên liệu -->
+        <div class="table-container modal-table-container">
+          <table class="recipe-ingredients-table">
+            <thead>
+              <tr>
+                <th class="ing-stt">STT</th>
+                <th class="ing-name">Tên nguyên vật liệu</th>
+                <th class="ing-qty">Số lượng</th>
+                <th class="ing-unit">Đơn vị</th>
+                <th class="ing-cost">Thành tiền</th>
+                <th class="edit-visible ing-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="recipe-ing-body"></tbody>
+          </table>
+        </div>
+
+        <!-- Tổng chi phí -->
+        <div class="cost-summary-row">
+          <span class="cost-label">Tổng tiền nguyên liệu:</span>
+          <span id="total-cost-display" class="cost-value">0 đ</span>
+        </div>
+
+        <!-- Ghi chú (luôn ở dưới bảng nguyên liệu) -->
+        <div class="form-group note-group">
+          <label for="rec-note">Ghi chú công thức</label>
+          <textarea
+            id="rec-note"
+            placeholder="Nhập ghi chú thêm cho thợ bánh nếu có..."
+            rows="2"
+          ></textarea>
+        </div>
       </div>
 
-      <div class="ingredient-picker-row edit-visible">
-        <div class="form-group picker-container">
-          <label for="ing-search-picker">Tìm chọn nguyên liệu</label>
+      <!-- CỘT PHẢI: Tên bánh + Meta + Các bước -->
+      <div class="recipe-right-col">
+        <!-- Tên bánh -->
+        <div class="form-group">
+          <label for="rec-name"
+            >Tên bánh / Công thức <span class="text-danger">*</span></label
+          >
           <input
             type="text"
-            id="ing-search-picker"
-            class="picker-input"
-            placeholder="🔍 Nhập tên nguyên liệu..."
-            onfocus="window.showAllIngredientsPicker()"
-            oninput="window.filterIngredientPicker()"
-            autocomplete="off"
-          />
-          <div
-            id="ing-picker-dropdown"
-            class="picker-dropdown"
-            onscroll="window.handlePickerScroll(event)"
-          ></div>
-        </div>
-
-        <div class="form-group col-qty-picker">
-          <label for="ing-qty-picker">Số lượng tiêu hao</label>
-          <input
-            type="number"
-            id="ing-qty-picker"
-            min="0"
-            step="any"
-            placeholder="0.00"
+            id="rec-name"
+            placeholder="Ví dụ: Bánh Mì Hoa Cúc, Bánh Bông Lan..."
           />
         </div>
 
-        <div class="form-group col-unit-lbl">
-          <label id="selected-ing-unit-lbl" class="unit-badge-label"
-            >Đơn vị: --</label
+        <!-- Thông tin phụ: Phân loại, Thời gian, Định lượng -->
+        <div class="recipe-meta-row">
+          <!-- Phân loại -->
+          <div class="form-group">
+            <label for="rec-type">📁 Phân loại:</label>
+            <select id="rec-type">
+              <option value="general">Chung</option>
+              <option value="crust">Vỏ bánh</option>
+              <option value="filling">Nhân bánh</option>
+            </select>
+          </div>
+
+          <!-- Thời gian -->
+          <div class="form-group">
+            <label for="rec-cook-time">🕒 Thời gian (phút):</label>
+            <input type="number" id="rec-cook-time" min="0" placeholder="60" />
+          </div>
+
+          <!-- Định lượng -->
+          <div class="form-group">
+            <label for="rec-output-text">⚖️ Định lượng (cái):</label>
+            <input
+              type="number"
+              id="rec-output-text"
+              min="1"
+              placeholder="10"
+              oninput="window.updateRecipeScale(this.value)"
+            />
+          </div>
+        </div>
+
+        <!-- Tiêu đề các bước -->
+        <label class="section-label">Các bước thực hiện</label>
+
+        <!-- Danh sách các bước -->
+        <div id="steps-list-container" class="steps-vertical-list"></div>
+
+        <!-- Nút thêm bước (Chỉ hiện khi Edit/Add) -->
+        <div class="step-actions-row">
+          <button
+            type="button"
+            class="btn-secondary edit-visible btn-add-step"
+            onclick="window.addStepRow()"
           >
+            + Thêm bước
+          </button>
         </div>
-        <button
-          type="button"
-          class="btn-primary btn-add-ing"
-          onclick="window.addIngredientToRecipe()"
-        >
-          + Thêm
-        </button>
-      </div>
-
-      <label class="section-label">Danh sách nguyên liệu tiêu hao</label>
-      <div class="table-container modal-table-container">
-        <table class="recipe-ingredients-table">
-          <thead>
-            <tr>
-              <th class="ing-stt">STT</th>
-              <th class="ing-name">Tên nguyên vật liệu</th>
-              <th class="ing-qty">Số lượng</th>
-              <th class="ing-unit">Đơn vị</th>
-              <th class="ing-cost">Thành tiền</th>
-              <th class="edit-visible ing-actions"></th>
-            </tr>
-          </thead>
-          <tbody id="recipe-ing-body"></tbody>
-        </table>
-      </div>
-
-      <div class="cost-summary-row">
-        <span class="cost-label">Tổng tiền nguyên liệu:</span>
-        <span id="total-cost-display" class="cost-value">0 đ</span>
-      </div>
-
-      <label class="section-label">Các bước thực hiện</label>
-      <div id="steps-list-container" class="steps-vertical-list"></div>
-
-      <div class="step-actions-row">
-        <button
-          type="button"
-          class="btn-secondary edit-visible btn-add-step"
-          onclick="window.addStepRow()"
-        >
-          + Thêm bước
-        </button>
-      </div>
-
-      <div class="form-group note-group">
-        <label for="rec-note">Ghi chú công thức</label>
-        <textarea
-          id="rec-note"
-          placeholder="Nhập ghi chú thêm cho thợ bánh nếu có..."
-          rows="2"
-        ></textarea>
       </div>
     </div>
 
