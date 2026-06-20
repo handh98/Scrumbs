@@ -22,7 +22,6 @@
 .autocomplete-wrapper {
   position: relative;
 }
-/* Các class autocomplete-dropdown và dropdown-item đã được quy hoạch vào global.css */
 
 .autocomplete-dropdown {
   position: absolute;
@@ -48,7 +47,6 @@
 }
 
 #o-status {
-  /* Kế thừa các thuộc tính chung từ select global, chỉ cần chỉnh radius */
   border-radius: var(--radius-sm);
 }
 
@@ -61,10 +59,12 @@
 }
 
 .ingredient-picker-row {
-  /* Giữ lại alignment đặc thù cho trang đơn hàng */
   align-items: flex-end;
   background: var(--neutral-150);
   border: 1px solid var(--neutral-300);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
 }
 
 .picker-col-name {
@@ -119,6 +119,7 @@
   padding: 4px 8px !important;
   font-size: var(--font-size-sm) !important;
   border-radius: var(--radius-sm) !important;
+  width: 100%;
 }
 
 .item-qty-input {
@@ -144,7 +145,7 @@
   align-items: center;
   background: var(--color-white);
   border-top: 1px solid var(--neutral-300);
-  padding: var(--space-md) var(--space-xl); /* Đồng bộ với modal-footer trong global.css */
+  padding: var(--space-md) var(--space-xl);
 }
 
 .total-summary-box {
@@ -155,4 +156,59 @@
 .modal-action-buttons {
   display: flex;
   gap: 10px;
+}
+
+/* Style cho nhóm bộ lọc Từ ngày - Đến ngày */
+.date-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-white);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-button-secondary);
+}
+
+.date-filter-group label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  margin: 0;
+}
+
+.date-filter-group input[type="date"] {
+  border: none;
+  background: transparent;
+  padding: 4px;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary-text);
+  outline: none;
+}
+
+/* Loại bỏ viền focus mặc định vì đã có viền của group bọc ngoài */
+.date-filter-group input[type="date"]:focus {
+  box-shadow: none;
+}
+
+/* Style cho nút Xóa/Reset ngày */
+.btn-reset-date {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin-left: 4px;
+}
+
+.btn-reset-date:hover {
+  background: #ffebee; /* Nền đỏ nhạt */
+  color: var(--color-highlight-danger);
 }

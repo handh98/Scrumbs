@@ -146,8 +146,8 @@
   background-color: var(--color-white);
   padding: var(--space-xxl);
   display: grid;
-  /* Cột trái 480px (meta + ảnh + thanh thêm nguyên liệu), cột phải 1.4fr cho bảng nguyên liệu + note */
-  grid-template-columns: 480px minmax(0, 1.4fr);
+  /* Cột trái 550px (meta + ảnh + thanh thêm nguyên liệu), cột phải 1.4fr cho bảng nguyên liệu + note */
+  grid-template-columns: 550px minmax(0, 1.4fr);
   gap: var(--space-md) 50px;
   align-items: start;
   animation: fadeInEffect 0.4s ease-out;

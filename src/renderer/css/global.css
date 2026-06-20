@@ -981,8 +981,7 @@ table tbody tr:hover {
 /* --- TOOLTIP SYSTEM --- */
 #choc-tooltip {
   position: fixed;
-  background-color: var(--color-primary-text);
-  color: var(--color-white);
+  color: var(--color-primary-text);
   padding: 8px 12px;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
@@ -1055,17 +1054,28 @@ table tbody tr:hover {
 }
 
 /* --- SHARED SELECTS & PICKERS --- */
-.quick-status-select {
-  padding: 5px 10px;
-  border-radius: 12px;
-  font-size: var(--font-size-sm);
-  font-weight: bold;
+
+.status-quick-select {
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-button-secondary);
+  background-color: var(--color-white);
+  color: var(--color-primary-text);
+  font-weight: 600;
   cursor: pointer;
   outline: none;
-  text-align: center;
-  font-family: inherit;
-  transition: all 0.2s ease;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+.status-quick-select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: var(--neutral-200);
+}
+
+.status-quick-select:hover:not(:disabled) {
+  border-color: var(--color-interactive-primary);
 }
 
 .picker-item-main {
@@ -1076,10 +1086,6 @@ table tbody tr:hover {
   font-size: var(--font-size-xxs);
   padding: 2px 4px;
   border-radius: 4px;
-}
-
-.quick-status-select:focus {
-  border-color: var(--color-button-primary-base);
 }
 
 /* --- PAGINATION --- */

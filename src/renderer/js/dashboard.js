@@ -120,7 +120,7 @@
             order.status === "completed" || order.status === "cancelled"
               ? `<span class="badge-${order.status}">${order.status === "completed" ? "Hoàn thành" : "Đã hủy"}</span>`
               : `
-          <select class="quick-status-select status-${order.status}" onchange="window.updateDashboardOrderStatus(${order.id}, this.value)">
+          <select class="status-quick-select status-${order.status}" onchange="window.updateDashboardOrderStatus(${order.id}, this.value)">
             <option value="pending" ${order.status === "pending" ? "selected" : ""}>Chờ xử lý</option>
             <option value="processing" ${order.status === "processing" ? "selected" : ""}>Đang làm</option>
             <option value="completed">Hoàn thành</option>

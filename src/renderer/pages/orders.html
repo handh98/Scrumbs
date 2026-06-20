@@ -4,7 +4,7 @@
       <img src="src/renderer/assets/orders.svg" alt="Order Icon" /> Quản Lý Đơn
       Hàng
     </h2>
-    <button class="btn-primary" onclick="window.openOrderModal()">
+    <button class="btn-primary" onclick="window.openOrderModal('add')">
       + Thêm đơn hàng
     </button>
   </div>
@@ -20,17 +20,38 @@
     </div>
 
     <div class="filter-group-wrapper">
+      <div class="date-filter-group">
+        <label for="filter-start-date">Từ:</label>
+        <input
+          type="date"
+          id="filter-start-date"
+          title="Từ ngày giao"
+          onchange="window.applyDateFilter()"
+        />
+
+        <label for="filter-end-date">Đến:</label>
+        <input
+          type="date"
+          id="filter-end-date"
+          title="Đến ngày giao"
+          onchange="window.applyDateFilter()"
+        />
+
+        <button
+          class="btn-reset-date"
+          onclick="window.resetDateFilter()"
+          title="Xóa bộ lọc ngày"
+        >
+          ✕
+        </button>
+      </div>
+
       <select id="filter-status" onchange="window.loadOrders()">
         <option value="all">Tất cả trạng thái</option>
         <option value="pending">Chờ xử lý</option>
         <option value="processing">Đang làm bánh</option>
         <option value="completed">Hoàn thành đơn</option>
         <option value="cancelled">Đã hủy</option>
-      </select>
-
-      <select id="sort-delivery-date" onchange="window.loadOrders()">
-        <option value="desc">Ngày giao: Mới nhất</option>
-        <option value="asc">Ngày giao: Cũ nhất</option>
       </select>
     </div>
   </div>
@@ -41,11 +62,11 @@
         <tr>
           <th class="col-id">Mã ĐH</th>
           <th class="col-customer">Khách hàng</th>
-          <th class="col-date">Ngày giao</th>
-          <th class="col-status">Trạng thái</th>
-          <th class="col-total">Tổng tiền</th>
+          <th class="col-date text-center">Ngày giao</th>
+          <th class="col-status text-center">Trạng thái</th>
+          <th class="col-total text-center">Tổng tiền</th>
           <th class="col-note">Ghi chú</th>
-          <th class="col-action">Hành động</th>
+          <th class="col-action text-center">Hành động</th>
         </tr>
       </thead>
       <tbody id="order-list-body"></tbody>
@@ -105,8 +126,8 @@
           <input type="date" id="o-date" />
         </div>
         <div class="form-group row-item">
-          <label>Trạng thái đơn</label>
-          <select id="o-status">
+          <label>Trạng thái đơn (Đổi trạng thái ở danh sách)</label>
+          <select id="o-status" disabled>
             <option value="pending">Chờ xử lý (Mới)</option>
             <option value="processing">Đang làm bánh</option>
             <option value="completed">Đã giao / Hoàn thành</option>

@@ -84,9 +84,7 @@
     </div>
 
     <div class="modal-body">
-      <!-- CỘT TRÁI: Ảnh + Nguyên liệu + Ghi chú -->
       <div class="recipe-left-col">
-        <!-- Upload ảnh (Chỉ hiện khi Edit/Add) -->
         <div class="form-group image-upload-group edit-visible">
           <label>📸 Thêm ảnh minh họa:</label>
           <input
@@ -97,7 +95,6 @@
           />
         </div>
 
-        <!-- Vùng hiển thị ảnh preview -->
         <div
           id="recipe-image-preview-container"
           class="image-preview-container"
@@ -115,10 +112,8 @@
           </button>
         </div>
 
-        <!-- Tiêu đề danh sách nguyên liệu -->
         <label class="section-label">Danh sách nguyên liệu</label>
 
-        <!-- Thanh thêm nguyên liệu (Chỉ hiện khi Edit/Add) -->
         <div class="ingredient-picker-row edit-visible">
           <div class="form-group picker-container">
             <label for="ing-search-picker">Tìm chọn nguyên liệu</label>
@@ -163,7 +158,6 @@
           </button>
         </div>
 
-        <!-- Bảng nguyên liệu -->
         <div class="table-container modal-table-container">
           <table class="recipe-ingredients-table">
             <thead>
@@ -180,13 +174,11 @@
           </table>
         </div>
 
-        <!-- Tổng chi phí -->
         <div class="cost-summary-row">
           <span class="cost-label">Tổng tiền nguyên liệu:</span>
           <span id="total-cost-display" class="cost-value">0 đ</span>
         </div>
 
-        <!-- Ghi chú (luôn ở dưới bảng nguyên liệu) -->
         <div class="form-group note-group">
           <label for="rec-note">Ghi chú công thức</label>
           <textarea
@@ -197,9 +189,7 @@
         </div>
       </div>
 
-      <!-- CỘT PHẢI: Tên bánh + Meta + Các bước -->
       <div class="recipe-right-col">
-        <!-- Tên bánh -->
         <div class="form-group">
           <label for="rec-name"
             >Tên bánh / Công thức <span class="text-danger">*</span></label
@@ -211,9 +201,7 @@
           />
         </div>
 
-        <!-- Thông tin phụ: Phân loại, Thời gian, Định lượng -->
         <div class="recipe-meta-row">
-          <!-- Phân loại -->
           <div class="form-group">
             <label for="rec-type">📁 Phân loại:</label>
             <select id="rec-type">
@@ -223,13 +211,11 @@
             </select>
           </div>
 
-          <!-- Thời gian -->
           <div class="form-group">
             <label for="rec-cook-time">🕒 Thời gian (phút):</label>
             <input type="number" id="rec-cook-time" min="0" placeholder="60" />
           </div>
 
-          <!-- Định lượng -->
           <div class="form-group">
             <label for="rec-output-text">⚖️ Định lượng (cái):</label>
             <input
@@ -242,13 +228,10 @@
           </div>
         </div>
 
-        <!-- Tiêu đề các bước -->
         <label class="section-label">Các bước thực hiện</label>
 
-        <!-- Danh sách các bước -->
         <div id="steps-list-container" class="steps-vertical-list"></div>
 
-        <!-- Nút thêm bước (Chỉ hiện khi Edit/Add) -->
         <div class="step-actions-row">
           <button
             type="button"
