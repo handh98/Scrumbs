@@ -65,6 +65,7 @@
   padding: var(--space-sm);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-md);
+  display: flex; /* Đảm bảo hiển thị dạng flex khi bình thường */
 }
 
 .picker-col-name {
@@ -116,14 +117,12 @@
 }
 
 .item-filling-select {
-  padding: 4px 8px !important;
   font-size: var(--font-size-sm) !important;
   border-radius: var(--radius-sm) !important;
   width: 100%;
 }
 
 .item-qty-input {
-  padding: 4px 8px !important;
   font-size: var(--font-size-sm) !important;
   border-radius: var(--radius-sm) !important;
   width: 60px;
@@ -137,7 +136,7 @@
 }
 
 #order-modal .modal-card {
-  max-width: 800px;
+  max-width: 950px;
   width: 90%;
 }
 #order-modal .modal-footer {
@@ -211,4 +210,9 @@
 .btn-reset-date:hover {
   background: #ffebee; /* Nền đỏ nhạt */
   color: var(--color-highlight-danger);
+}
+
+/* ẨN DÒNG CHỌN MÓN KHI Ở CHẾ ĐỘ XEM (VIEW MODE) */
+#order-modal[data-readonly] .ingredient-picker-row {
+  display: none !important;
 }
