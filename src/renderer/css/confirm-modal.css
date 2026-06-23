@@ -9,7 +9,7 @@
   width: fit-content;
 }
 .confirm-modal-content {
-  background: var(--white);
+  background: var(--color-white);
   padding: 25px;
   border-radius: 20px;
   width: 350px;

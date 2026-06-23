@@ -951,6 +951,16 @@ table tbody tr:hover {
   background-color: var(--color-button-primary-hover);
 }
 
+/* Hiệu ứng sọc dưa (Zebra-striping) - Phủ màu hồng sữa rất nhạt cho các dòng chẵn */
+table tbody tr:nth-child(even) {
+  background-color: var(--color-border-table-row);
+}
+
+/* Đảm bảo hiệu ứng hover luôn đè lên màu sọc dưa */
+table tbody tr:hover {
+  background-color: var(--color-button-primary-hover) !important;
+}
+
 .table-scroll::-webkit-scrollbar {
   width: 4px;
 }

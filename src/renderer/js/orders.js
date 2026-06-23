@@ -1,7 +1,6 @@
 (function () {
   const itemsPerPage = 6;
   const API = window.electronAPI;
-  const escHtml = window.escHtml;
 
   window.orderState = {
     currentPage: 1,
@@ -18,18 +17,20 @@
 
   const fetchAvailableMenuItems = async () => {
     const priceQuery = `
-      SELECT m.id, m.name,
+      SELECT m.id, m.name, COALESCE(m.selling_price, 0) AS price,
         COALESCE((
           COALESCE((SELECT SUM(mr.ratio * (SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) / CAST(r.output AS REAL) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = mr.recipe_id)) FROM menu_recipes mr WHERE mr.menu_item_id = m.id), 0) +
           COALESCE((SELECT SUM(mp.qty * i.unit_price) FROM menu_packaging mp JOIN ingredients i ON mp.ingredient_id = i.id WHERE mp.menu_item_id = m.id), 0) +
+          COALESCE((SELECT SUM(mig.qty * i.unit_price) FROM menu_ingredients mig JOIN ingredients i ON mig.ingredient_id = i.id WHERE mig.menu_item_id = m.id), 0) +
           m.electricity + m.depreciation + m.labor
-        ) / CASE WHEN m.profit_margin < 100 AND m.profit_margin > 0 THEN (1 - (m.profit_margin / 100.0)) ELSE 1 END, 0) AS price
+        ), 0) AS base_cost
       FROM menu_items m WHERE m.is_active = 1
     `;
     const items = await API.db_query(priceQuery);
     return items.map((item) => ({
       ...item,
       price: Math.round(item.price),
+      base_cost: item.base_cost,
       _normalizedName: window.removeAccents(item.name),
     }));
   };
@@ -50,19 +51,16 @@
       if (endDateInput) window.orderState.endDate = endDateInput.value;
 
       const statusFilter = $("filter-status")?.value || "all";
-      const dateSort = $("sort-delivery-date")?.value || "desc";
       const kw = window.orderState.keyword
         ? `%${window.orderState.keyword}%`
         : null;
 
       let whereClause = "";
       let params = [];
-
       if (statusFilter !== "all") {
         whereClause += " WHERE o.status = ?";
         params.push(statusFilter);
       }
-
       if (window.orderState.startDate) {
         whereClause +=
           (whereClause ? " AND" : " WHERE") + " o.delivery_date >= ?";
@@ -77,19 +75,19 @@
         whereClause +=
           (whereClause ? " AND" : " WHERE") +
           " orders.customer_id IN (SELECT rowid FROM customers_fts WHERE customers_fts MATCH ?)";
-        const cleanKeyword = window.removeAccents(window.orderState.keyword);
-        const tokens = cleanKeyword.split(/\s+/).filter(Boolean);
-        const searchQuery = tokens
+        const searchQuery = window
+          .removeAccents(window.orderState.keyword)
+          .split(/\s+/)
+          .filter(Boolean)
           .map((t) => `${t.replace(/"/g, '""')}*`)
           .join(" ");
         params.push(searchQuery);
       }
 
-      const orderBy = "ORDER BY o.delivery_date DESC, o.id DESC";
-      const sql = `SELECT o.*, c.name as cust_name, c.phone as cust_phone FROM orders o LEFT JOIN customers c ON o.customer_id = c.id ${whereClause} ${orderBy}`;
+      const sql = `SELECT o.*, c.name as cust_name, c.phone as cust_phone FROM orders o LEFT JOIN customers c ON o.customer_id = c.id ${whereClause} ORDER BY o.delivery_date DESC, o.id DESC`;
       const orders = await API.db_query(sql, params).catch(() => []);
 
-      if (!orders || orders.length === 0) {
+      if (!orders.length) {
         tbody.innerHTML = `<tr><td colspan="7" class="no-data text-center">Không có đơn hàng nào phù hợp.</td></tr>`;
         if (paginationContainer) paginationContainer.innerHTML = "";
         return;
@@ -107,18 +105,18 @@
 
       tbody.innerHTML = pagingResult.data
         .map((o) => {
-          const isLocked = o.status === "completed" || o.status === "cancelled";
-          const currentNote = o.note?.trim() || "";
+          // Khóa không cho Edit thông tin khách/món ăn nếu đơn đang làm hoặc đã xong
+          const isEditingLocked =
+            o.status === "processing" ||
+            o.status === "completed" ||
+            o.status === "cancelled";
           return `
           <tr>
             <td class="text-center"><b>#${o.id}</b></td>
-            <td>
-              <div><b>${o.cust_name || "Khách vãng lai"}</b></div>
-              <div style="font-size: 11px; color: #bc5a1a; font-weight: normal; margin-top: 2px;">${o.cust_phone || "---"}</div>
-            </td>
+            <td><div><b>${o.cust_name || "Khách vãng lai"}</b></div><div class="text-muted" style="font-size: 12px;">${o.cust_phone || "---"}</div></td>
             <td class="text-center"><b>${o.delivery_date}</b></td>
             <td class="text-center">
-              <select class="status-quick-select" data-original="${o.status}" onchange="window.updateOrderStatusQuick(${o.id}, this.value, this)" ${isLocked ? "disabled" : ""}>
+              <select class="status-quick-select" data-original="${o.status}" onchange="window.updateOrderStatusQuick(${o.id}, this.value, this)">
                 <option value="pending" ${o.status === "pending" ? "selected" : ""}>Chờ xử lý</option>
                 <option value="processing" ${o.status === "processing" ? "selected" : ""}>Đang làm</option>
                 <option value="completed" ${o.status === "completed" ? "selected" : ""}>Hoàn thành</option>
@@ -126,22 +124,10 @@
               </select>
             </td>
             <td class="text-center text-primary"><b>${window.formatNumber(o.total_amount)} đ</b></td>
-            <td class="text-center note-column has-tooltip" data-note="${currentNote || "..."}">
-                ${currentNote || "..."}
-              </td>
+            <td class="text-center note-column has-tooltip" data-note="${o.note?.trim() || "..."}">${o.note?.trim() || "..."}</td>
             <td class="text-center action-column">
-              <button class="btn-secondary" title="Xem chi tiết" onclick="window.openOrderModal('view', ${o.id})">
-                <img src="src/renderer/assets/view.svg" class="icon" />
-              </button>
-              ${
-                isLocked
-                  ? ""
-                  : `
-              <button class="btn-secondary" title="Sửa" onclick="window.openOrderModal('edit', ${o.id})">
-                <img src="src/renderer/assets/edit.svg" class="icon" />
-              </button>
-              `
-              }
+              <button class="btn-secondary" title="Xem chi tiết" onclick="window.openOrderModal('view', ${o.id})"><img src="src/renderer/assets/view.svg" class="icon" /></button>
+              ${isEditingLocked ? "" : `<button class="btn-secondary" title="Sửa" onclick="window.openOrderModal('edit', ${o.id})"><img src="src/renderer/assets/edit.svg" class="icon" /></button>`}
             </td>
           </tr>
         `;
@@ -151,34 +137,49 @@
       if (paginationContainer)
         paginationContainer.innerHTML = pagingResult.html;
     } catch (error) {
-      console.error("Lỗi tải danh sách đơn hàng:", error);
       window.showToast?.("Lỗi tải đơn hàng!", "error");
     } finally {
       await window.showLoader(false);
     }
   };
 
+  // --- LOGIC TRỪ / HOÀN KHO THỜI GIAN THỰC ---
   window.updateOrderStatusQuick = async (id, newStatus, selectEl) => {
     const oldStatus = selectEl.getAttribute("data-original");
+    if (oldStatus === newStatus) return;
+
     try {
-      if (newStatus === "completed" || newStatus === "cancelled") {
-        const statusText =
-          newStatus === "completed" ? "Hoàn thành (Trừ vật tư)" : "Hủy đơn";
-        if (
-          window.showConfirm &&
-          !(await window.showConfirm(
-            "Xác nhận chốt đơn",
-            `Chuyển đơn #${id} sang "${statusText}"? Đơn hàng sẽ bị khóa cứng.`,
-          ))
-        ) {
-          selectEl.value = oldStatus;
-          return;
-        }
+      const confirmMsg =
+        newStatus === "cancelled"
+          ? "Xác nhận HỦY đơn hàng? Kho sẽ được hoàn trả (nếu đã trừ)."
+          : newStatus === "processing"
+            ? "Đơn sẽ được mang đi làm. KHO SẼ BỊ TRỪ NGAY LẬP TỨC. Tiếp tục?"
+            : `Chuyển trạng thái sang ${newStatus}?`;
+
+      if (
+        window.showConfirm &&
+        !(await window.showConfirm("Xác nhận trạng thái", confirmMsg))
+      ) {
+        selectEl.value = oldStatus;
+        return;
       }
 
       await window.showLoader(true);
-      if (newStatus === "completed") {
+
+      // Nếu chuyển từ Pending -> Processing/Completed: TRỪ KHO
+      if (
+        oldStatus === "pending" &&
+        (newStatus === "processing" || newStatus === "completed")
+      ) {
         await deductInventoryFromOrder(id);
+      }
+
+      // Nếu đơn đang làm/đã xong bị Hủy hoặc Trả về Pending: HOÀN KHO
+      if (
+        (oldStatus === "processing" || oldStatus === "completed") &&
+        (newStatus === "cancelled" || newStatus === "pending")
+      ) {
+        await restoreInventoryFromOrder(id);
       }
 
       await API.db_execute("UPDATE orders SET status = ? WHERE id = ?", [
@@ -188,134 +189,12 @@
       window.showToast?.("Cập nhật trạng thái thành công!", "success");
       window.loadOrders();
     } catch (error) {
-      console.error("Lỗi cập nhật trạng thái nhanh:", error);
-      window.showToast?.(error.message || "Lỗi không xác định", "error");
-      selectEl.value = oldStatus; // Phục hồi về trạng thái cũ nếu lỗi (VD: không đủ kho)
+      console.error("Lỗi:", error);
+      window.showToast?.(error.message || "Lỗi cập nhật", "error");
+      selectEl.value = oldStatus;
+    } finally {
       await window.showLoader(false);
     }
-  };
-
-  /**
-   * Cấu trúc lại toàn bộ hàm mở Modal: Gom chung tính năng Add, Edit, View.
-   */
-  window.openOrderModal = async (mode = "add", id = null) => {
-    const modal = $("order-modal");
-    if (!modal) return;
-
-    window.orderState.customersCache = null;
-    modal.setAttribute("data-mode", mode);
-    modal.setAttribute("data-editing-id", id || "");
-
-    const btnCancel = modal.querySelector(".modal-footer .btn-secondary");
-    if (btnCancel) btnCancel.innerText = mode === "view" ? "Đóng" : "Hủy bỏ";
-
-    // Reset Form
-    [
-      "o-customer",
-      "o-phone",
-      "o-address",
-      "o-date",
-      "o-note",
-      "o-menu-search",
-    ].forEach((elId) => {
-      const el = $(elId);
-      if (el) el.value = "";
-    });
-    $("o-item-qty").value = 1;
-    $("o-status").value = "pending";
-    window.orderState.items = [];
-    window.orderState.selectedCustomerId = null;
-    window.orderState.selectedMenuPicker = null;
-
-    await window.showLoader(true);
-    try {
-      window.orderState.menuItems = await fetchAvailableMenuItems();
-
-      if (mode !== "add" && id) {
-        const data = await API.db_query(
-          `SELECT orders.*, customers.name AS cust_name, customers.phone AS cust_phone, customers.address AS cust_address FROM orders LEFT JOIN customers ON orders.customer_id = customers.id WHERE orders.id = ?`,
-          [id],
-        );
-        if (data?.length) {
-          const order = data[0];
-          window.orderState.selectedCustomerId = order.customer_id;
-          $("o-customer").value = order.cust_name || "";
-          $("o-phone").value = order.cust_phone || "";
-          $("o-address").value = order.cust_address || "";
-          $("o-date").value = order.delivery_date || "";
-          $("o-status").value = order.status || "pending";
-          $("o-note").value = order.note || "";
-
-          const parsedItems = order.items_json
-            ? JSON.parse(order.items_json)
-            : [];
-          for (const item of parsedItems) {
-            const allFillingsForMenuItem = await API.db_query(
-              `SELECT r.id, r.name, mf.is_default,
-                (CASE WHEN mf.price > 0 THEN mf.price ELSE (SELECT CEIL(SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id) END) * mf.qty AS price
-               FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id WHERE mf.menu_item_id = ?`,
-              [item.menu_id],
-            );
-            window.orderState.items.push({
-              ...item,
-              all_fillings: allFillingsForMenuItem,
-            });
-          }
-
-          // Kiểm tra khóa readonly nếu ở mode view hoặc nếu đơn đã hoàn thành/hủy
-          const isReadOnly =
-            mode === "view" ||
-            order.status === "completed" ||
-            order.status === "cancelled";
-          modal.toggleAttribute("data-readonly", isReadOnly);
-          $("order-modal-title").innerText = isReadOnly
-            ? "Chi Tiết Đơn Hàng"
-            : "Chỉnh Sửa Đơn Hàng";
-        }
-      } else {
-        modal.removeAttribute("data-readonly");
-        $("order-modal-title").innerText = "Tạo Đơn Hàng Mới";
-      }
-
-      const isReadOnly = modal.hasAttribute("data-readonly");
-      [
-        "o-customer",
-        "o-phone",
-        "o-address",
-        "o-date",
-        "o-note",
-        "o-menu-search",
-        "o-item-qty",
-      ].forEach((elId) => {
-        if ($(elId)) $(elId).disabled = isReadOnly;
-      });
-      // Luôn luôn khóa Status Select trong modal để ép người dùng dùng Quick Action ở Table
-      $("o-status").disabled = true;
-
-      // CẬP NHẬT ẨN HIỆN CÁC NÚT VÀ DÒNG CHỌN MÓN KHI Ở CHẾ ĐỘ VIEW
-      const btnAddItem = document.querySelector(".btn-add-item");
-      if (btnAddItem) btnAddItem.disabled = isReadOnly;
-
-      const pickerRow = document.querySelector(".ingredient-picker-row");
-      if (pickerRow) pickerRow.style.display = isReadOnly ? "none" : ""; // Trả về chuỗi rỗng để CSS tiếp quản flex
-
-      if ($("btn-save-order"))
-        $("btn-save-order").style.display = isReadOnly ? "none" : "block";
-
-      window.renderOrderItems();
-      modal.classList.add("flex");
-    } catch (err) {
-      console.error(err);
-      window.showToast?.("Lỗi tải thông tin đơn hàng", "error");
-    } finally {
-      window.showLoader(false);
-    }
-  };
-
-  window.closeOrderModal = () => {
-    $("order-modal").classList.remove("flex");
-    $("customer-dropdown").classList.remove("show");
-    $("menu-dropdown").classList.remove("show");
   };
 
   async function deductInventoryFromOrder(orderId) {
@@ -326,21 +205,19 @@
         [orderId],
       );
       if (!order || !order.items_json) return;
-      const items = JSON.parse(order.items_json);
 
+      const items = JSON.parse(order.items_json);
       for (const item of items) {
         const itemLabel =
           item.filling_name && item.filling_name !== "Không nhân"
             ? `${item.base_name} (${item.filling_name})`
             : item.base_name;
+
         const ingredientsNeeded = await API.db_query(
           `
-          SELECT ri.ingredient_id, (ri.qty * mr.ratio * ? / CAST(r.output AS REAL)) AS total_needed
-          FROM menu_recipes mr JOIN recipe_ingredients ri ON mr.recipe_id = ri.recipe_id JOIN recipes r ON mr.recipe_id = r.id WHERE mr.menu_item_id = ?
-          UNION ALL
-          SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_ingredients WHERE menu_item_id = ?
-          UNION ALL
-          SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_packaging WHERE menu_item_id = ?
+          SELECT ri.ingredient_id, (ri.qty * mr.ratio * ? / CAST(r.output AS REAL)) AS total_needed FROM menu_recipes mr JOIN recipe_ingredients ri ON mr.recipe_id = ri.recipe_id JOIN recipes r ON mr.recipe_id = r.id WHERE mr.menu_item_id = ?
+          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_ingredients WHERE menu_item_id = ?
+          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_packaging WHERE menu_item_id = ?
         `,
           [
             item.qty,
@@ -401,35 +278,216 @@
     }
   }
 
-  window.searchOrders = window.debounce(() => {
-    window.orderState.keyword = $("order-search")?.value.trim() || "";
-    window.orderState.currentPage = 1;
-    window.loadOrders();
-  }, 300);
+  // HÀM HOÀN TRẢ KHO MỚI
+  async function restoreInventoryFromOrder(orderId) {
+    try {
+      await API.db_execute("BEGIN TRANSACTION");
+      const [order] = await API.db_query(
+        "SELECT items_json FROM orders WHERE id = ?",
+        [orderId],
+      );
+      if (!order || !order.items_json) return;
 
+      const items = JSON.parse(order.items_json);
+      for (const item of items) {
+        const ingredientsNeeded = await API.db_query(
+          `
+          SELECT ri.ingredient_id, (ri.qty * mr.ratio * ? / CAST(r.output AS REAL)) AS total_needed FROM menu_recipes mr JOIN recipe_ingredients ri ON mr.recipe_id = ri.recipe_id JOIN recipes r ON mr.recipe_id = r.id WHERE mr.menu_item_id = ?
+          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_ingredients WHERE menu_item_id = ?
+          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_packaging WHERE menu_item_id = ?
+        `,
+          [
+            item.qty,
+            item.menu_id,
+            item.qty,
+            item.menu_id,
+            item.qty,
+            item.menu_id,
+          ],
+        );
+
+        if (item.filling_id) {
+          const fillingIngs = await API.db_query(
+            "SELECT ri.ingredient_id, (ri.qty * ? / CAST(r.output AS REAL)) as total_needed FROM recipe_ingredients ri JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = ?",
+            [item.qty, item.filling_id],
+          );
+          ingredientsNeeded.push(...fillingIngs);
+        }
+
+        // Tạo 1 lô hàng "Hoàn trả ảo" cho từng nguyên liệu để ghi nhận lại số lượng vào kho
+        for (const ing of ingredientsNeeded) {
+          if (ing.total_needed <= 0) continue;
+          // Lấy giá bình quân hiện hành
+          const [ingInfo] = await API.db_query(
+            "SELECT unit_price FROM ingredients WHERE id = ?",
+            [ing.ingredient_id],
+          );
+          const refundPrice = (ingInfo.unit_price || 0) * ing.total_needed;
+
+          await API.db_execute(
+            `INSERT INTO inventory_batches (ingredient_id, qty_imported, qty_remaining, import_date, purchase_price, note) VALUES (?, ?, ?, DATE('now'), ?, ?)`,
+            [
+              ing.ingredient_id,
+              ing.total_needed,
+              ing.total_needed,
+              refundPrice,
+              `[♻️ Hoàn trả kho do Hủy/Lùi đơn #${orderId}]`,
+            ],
+          );
+        }
+      }
+      await API.db_execute("COMMIT");
+    } catch (err) {
+      await API.db_execute("ROLLBACK");
+      throw err;
+    }
+  }
+
+  // --- CRUD MODAL ĐƠN HÀNG ---
+  window.openOrderModal = async (mode = "add", id = null) => {
+    const modal = $("order-modal");
+    if (!modal) return;
+
+    window.orderState.customersCache = null;
+    modal.setAttribute("data-mode", mode);
+    modal.setAttribute("data-editing-id", id || "");
+
+    const btnCancel = modal.querySelector(".modal-footer .btn-secondary");
+    if (btnCancel) btnCancel.innerText = mode === "view" ? "Đóng" : "Hủy bỏ";
+
+    [
+      "o-customer",
+      "o-phone",
+      "o-address",
+      "o-date",
+      "o-note",
+      "o-menu-search",
+    ].forEach((elId) => {
+      if ($(elId)) $(elId).value = "";
+    });
+    $("o-item-qty").value = 1;
+    $("o-status").value = "pending";
+    window.orderState.items = [];
+    window.orderState.selectedCustomerId = null;
+    window.orderState.selectedMenuPicker = null;
+
+    await window.showLoader(true);
+    try {
+      window.orderState.menuItems = await fetchAvailableMenuItems();
+
+      if (mode !== "add" && id) {
+        const data = await API.db_query(
+          `SELECT orders.*, customers.name AS cust_name, customers.phone AS cust_phone, customers.address AS cust_address FROM orders LEFT JOIN customers ON orders.customer_id = customers.id WHERE orders.id = ?`,
+          [id],
+        );
+        if (data?.length) {
+          const order = data[0];
+          window.orderState.selectedCustomerId = order.customer_id;
+          $("o-customer").value = order.cust_name || "";
+          $("o-phone").value = order.cust_phone || "";
+          $("o-address").value = order.cust_address || "";
+          $("o-date").value = order.delivery_date || "";
+          $("o-status").value = order.status || "pending";
+          $("o-note").value = order.note || "";
+
+          const parsedItems = order.items_json
+            ? JSON.parse(order.items_json)
+            : [];
+          for (const item of parsedItems) {
+            const allFillingsForMenuItem = await API.db_query(
+              `SELECT r.id, r.name, mf.is_default, (CASE WHEN mf.price > 0 THEN mf.price ELSE (SELECT CEIL(SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id) END) * mf.qty AS price, (SELECT SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id) * mf.qty AS cost FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id WHERE mf.menu_item_id = ?`,
+              [item.menu_id],
+            );
+            window.orderState.items.push({
+              ...item,
+              all_fillings: allFillingsForMenuItem,
+            });
+          }
+
+          // LOCK CHẶT NẾU ĐƠN ĐÃ LÀM HOẶC HOÀN THÀNH
+          const isReadOnly =
+            mode === "view" ||
+            order.status === "processing" ||
+            order.status === "completed" ||
+            order.status === "cancelled";
+          modal.toggleAttribute("data-readonly", isReadOnly);
+          $("order-modal-title").innerText = isReadOnly
+            ? "Chi Tiết Đơn Hàng"
+            : "Chỉnh Sửa Đơn Hàng";
+        }
+      } else {
+        modal.removeAttribute("data-readonly");
+        $("order-modal-title").innerText = "Tạo Đơn Hàng Mới";
+      }
+
+      const isReadOnly = modal.hasAttribute("data-readonly");
+      [
+        "o-customer",
+        "o-phone",
+        "o-address",
+        "o-date",
+        "o-note",
+        "o-menu-search",
+        "o-item-qty",
+      ].forEach((elId) => {
+        if ($(elId)) $(elId).disabled = isReadOnly;
+      });
+      $("o-status").disabled = true;
+
+      const btnAddItem = document.querySelector(".btn-add-item");
+      if (btnAddItem) btnAddItem.disabled = isReadOnly;
+      const pickerRow = document.querySelector(".ingredient-picker-row");
+      if (pickerRow) pickerRow.style.display = isReadOnly ? "none" : "";
+      if ($("btn-save-order"))
+        $("btn-save-order").style.display = isReadOnly ? "none" : "block";
+
+      window.renderOrderItems();
+      modal.classList.add("flex");
+    } catch (err) {
+      window.showToast?.("Lỗi", "error");
+    } finally {
+      window.showLoader(false);
+    }
+  };
+
+  window.closeOrderModal = () => {
+    $("order-modal").classList.remove("flex");
+    $("customer-dropdown").classList.remove("show");
+    $("menu-dropdown").classList.remove("show");
+  };
+
+  // --- CÁC HÀM UI PICKER GIỮ NGUYÊN ---
   window.applyDateFilter = window.debounce(() => {
     const startDateInput = $("filter-start-date");
     const endDateInput = $("filter-end-date");
-
     if (startDateInput && endDateInput) {
-      // Ngày kết thúc (Đến) không được nhỏ hơn ngày bắt đầu (Từ)
       endDateInput.min = startDateInput.value;
-
-      // Ngày bắt đầu (Từ) không được lớn hơn ngày kết thúc (Đến)
       startDateInput.max = endDateInput.value;
     }
-
-    // Reset về trang 1 và tải lại danh sách
     window.orderState.currentPage = 1;
     window.loadOrders();
   }, 300);
-
+  window.resetDateFilter = () => {
+    const startInput = $("filter-start-date");
+    const endInput = $("filter-end-date");
+    if (startInput) {
+      startInput.value = "";
+      startInput.max = "";
+    }
+    if (endInput) {
+      endInput.value = "";
+      endInput.min = "";
+    }
+    window.orderState.startDate = "";
+    window.orderState.endDate = "";
+    window.orderState.currentPage = 1;
+    window.loadOrders();
+  };
   window.onCustomerInput = window.debounce(async () => {
     if ($("order-modal")?.hasAttribute("data-readonly")) return;
     const txt = $("o-customer")?.value.trim() || "";
     const dropdown = $("customer-dropdown");
     window.orderState.selectedCustomerId = null;
-
     if (!txt) return dropdown.classList.remove("show");
     if (!window.orderState.customersCache) {
       const raw = await API.db_query(
@@ -438,7 +496,6 @@
       raw.forEach((c) => (c._normalizedName = window.removeAccents(c.name)));
       window.orderState.customersCache = raw;
     }
-
     const normalizedTxt = window.removeAccents(txt);
     const customers = window.orderState.customersCache
       .filter(
@@ -448,39 +505,14 @@
       )
       .slice(0, 5);
     if (!customers?.length) return dropdown.classList.remove("show");
-
     dropdown.innerHTML = customers
       .map(
-        (c) => `
-      <div class="dropdown-item" onmousedown="window.selectCustomerRow(${c.id}, '${c.name.replace(/'/g, "\\'")}', '${(c.phone || "").replace(/'/g, "\\'")}', '${(c.address || "").replace(/'/g, "\\'")}')">
-        <b>${c.name}</b> - ${c.phone || "Chưa có SĐT"}
-      </div>
-    `,
+        (c) =>
+          `<div class="dropdown-item" onmousedown="window.selectCustomerRow(${c.id}, '${c.name.replace(/'/g, "\\'")}', '${(c.phone || "").replace(/'/g, "\\'")}', '${(c.address || "").replace(/'/g, "\\'")}')"><b>${c.name}</b> - ${c.phone || "Chưa có SĐT"}</div>`,
       )
       .join("");
     dropdown.classList.add("show");
   }, 300);
-
-  // Hàm xử lý khi bấm nút "✕" để xóa bộ lọc ngày
-  window.resetDateFilter = () => {
-    const startInput = $("filter-start-date");
-    const endInput = $("filter-end-date");
-
-    if (startInput) {
-      startInput.value = "";
-      startInput.max = ""; // Xóa chặn ngày
-    }
-    if (endInput) {
-      endInput.value = "";
-      endInput.min = ""; // Xóa chặn ngày
-    }
-
-    window.orderState.startDate = "";
-    window.orderState.endDate = "";
-    window.orderState.currentPage = 1;
-    window.loadOrders();
-  };
-
   window.selectCustomerRow = (id, name, phone, address) => {
     $("o-customer").value = name;
     $("o-phone").value = phone;
@@ -488,7 +520,6 @@
     window.orderState.selectedCustomerId = id;
     $("customer-dropdown").classList.remove("show");
   };
-
   document.addEventListener("DOMContentLoaded", () => {
     const custInput = $("o-customer");
     if (custInput && !$("o-customer").dataset.blurBound) {
@@ -506,7 +537,6 @@
     const filtered = window.orderState.menuItems.filter((m) =>
       m._normalizedName.includes(normalizedTxt),
     );
-
     dropdown.innerHTML = filtered.length
       ? filtered
           .map(
@@ -520,23 +550,21 @@
 
   window.selectMenuPickerItem = async (id, name, price) => {
     $("o-menu-search").value = name;
-    window.orderState.selectedMenuPicker = { id, name, price };
+    const selectedItem = window.orderState.menuItems.find((m) => m.id === id);
+    const base_cost = selectedItem ? selectedItem.base_cost : 0;
+    window.orderState.selectedMenuPicker = { id, name, price, base_cost };
     $("menu-dropdown").classList.remove("show");
-
     window.orderState.currentItemFillings = await API.db_query(
-      `SELECT r.id, r.name, mf.is_default,
-        (CASE WHEN mf.price > 0 THEN mf.price ELSE (SELECT CEIL(SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id) END) * mf.qty AS price
-       FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id WHERE mf.menu_item_id = ?`,
+      `SELECT r.id, r.name, mf.is_default, (CASE WHEN mf.price > 0 THEN mf.price ELSE (SELECT CEIL(SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) / 100.0) * 100 FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id) END) * mf.qty AS price, (SELECT SUM(ri.qty * i.unit_price) / MAX(1.0, CAST(r.output AS REAL)) FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.recipe_id = mf.recipe_id) * mf.qty AS cost FROM menu_fillings mf JOIN recipes r ON mf.recipe_id = r.id WHERE mf.menu_item_id = ?`,
       [id],
     );
-
     const fillingPicker = $("o-filling-picker");
     if (fillingPicker) {
-      let optionsHtml = `<option value="0" data-filling-price="0">Không nhân - 0đ</option>`;
+      let optionsHtml = `<option value="0" data-filling-price="0" data-filling-cost="0">Không nhân - 0đ</option>`;
       optionsHtml += window.orderState.currentItemFillings
         .map(
           (f) =>
-            `<option value="${f.id}" ${f.is_default ? "selected" : ""} data-filling-price="${f.price}">${f.name} - ${window.formatNumber(f.price)}đ</option>`,
+            `<option value="${f.id}" ${f.is_default ? "selected" : ""} data-filling-price="${f.price}" data-filling-cost="${f.cost}">${f.name} - ${window.formatNumber(f.price)}đ</option>`,
         )
         .join("");
       fillingPicker.innerHTML = optionsHtml;
@@ -551,13 +579,12 @@
     const qtyInput = $("o-item-qty");
     const fillingPicker = $("o-filling-picker");
     const qty = parseInt(qtyInput?.value) || 0;
-
     if (!window.orderState.selectedMenuPicker || qty <= 0)
       return window.showToast?.("Vui lòng chọn bánh!", "warning");
-
     let fillingId = 0;
     let fillingName = "Không nhân";
     let fillingPrice = 0;
+    let fillingCost = 0;
     if (fillingPicker && fillingPicker.value !== "0") {
       fillingId = parseInt(fillingPicker.value);
       const selectedOption = fillingPicker.options[fillingPicker.selectedIndex];
@@ -565,13 +592,12 @@
         ? selectedOption.text.split(" - ")[0].trim()
         : "";
       fillingPrice = parseFloat(selectedOption?.dataset.fillingPrice) || 0;
+      fillingCost = parseFloat(selectedOption?.dataset.fillingCost) || 0;
     }
-
     const baseCake = window.orderState.selectedMenuPicker;
     const existing = window.orderState.items.find(
       (i) => i.menu_id === baseCake.id && i.filling_id === fillingId,
     );
-
     if (existing) {
       existing.qty += qty;
       existing.subtotal =
@@ -581,15 +607,16 @@
         menu_id: baseCake.id,
         base_name: baseCake.name,
         base_price: baseCake.price,
+        base_cost: baseCake.base_cost || 0,
         filling_id: fillingId,
         filling_name: fillingName,
         filling_price: fillingPrice,
+        filling_cost: fillingCost || 0,
         all_fillings: [...window.orderState.currentItemFillings],
         qty,
         subtotal: qty * (baseCake.price + fillingPrice),
       });
     }
-
     $("o-menu-search").value = "";
     if (fillingPicker)
       fillingPicker.innerHTML = '<option value="0">Không nhân - 0đ</option>';
@@ -597,7 +624,6 @@
     window.orderState.selectedMenuPicker = null;
     window.renderOrderItems();
   };
-
   window.updateOrderItemQty = (index, newQty) => {
     const qty = parseInt(newQty) || 0;
     if (qty < 0) return;
@@ -606,7 +632,6 @@
     item.subtotal = qty * (item.base_price + item.filling_price);
     window.renderOrderItems();
   };
-
   window.updateOrderItemFilling = (index, newFillingId) => {
     const item = window.orderState.items[index];
     if (!item) return;
@@ -615,18 +640,19 @@
       item.filling_id = 0;
       item.filling_name = "Không nhân";
       item.filling_price = 0;
+      item.filling_cost = 0;
     } else {
       const f = item.all_fillings.find((fill) => fill.id === newFillingId);
       if (f) {
         item.filling_id = f.id;
         item.filling_name = f.name;
         item.filling_price = f.price;
+        item.filling_cost = f.cost;
       }
     }
     item.subtotal = item.qty * (item.base_price + item.filling_price);
     window.renderOrderItems();
   };
-
   window.removeOrderItem = (index) => {
     window.orderState.items.splice(index, 1);
     window.renderOrderItems();
@@ -636,7 +662,6 @@
     const isReadOnly = $("order-modal")?.hasAttribute("data-readonly");
     const thDel = document.querySelector(".modal-col-del");
     if (thDel) thDel.innerText = isReadOnly ? "" : "Xóa";
-
     const total = window.orderState.items.reduce(
       (sum, item) => sum + item.subtotal,
       0,
@@ -646,7 +671,6 @@
           .map((item, index) => {
             const unitPrice = item.base_price + item.filling_price;
             let fillingSelectHtml = '<div class="text-center">---</div>';
-
             if (item.all_fillings && item.all_fillings.length > 0) {
               fillingSelectHtml = `<select class="item-filling-select" onchange="window.updateOrderItemFilling(${index}, this.value)" ${isReadOnly ? "disabled" : ""}>`;
               fillingSelectHtml += `<option value="0" ${item.filling_id === 0 ? "selected" : ""}>Không nhân - 0đ</option>`;
@@ -658,20 +682,10 @@
                 .join("");
               fillingSelectHtml += `</select>`;
             }
-
-            return `
-        <tr>
-          <td>${item.base_name}</td>
-          <td>${fillingSelectHtml}</td>
-          <td class="text-right">${window.formatNumber(unitPrice)} đ</td>
-          <td class="text-center"><input type="number" class="item-qty-input" value="${item.qty}" min="1" oninput="window.updateOrderItemQty(${index}, this.value)" ${isReadOnly ? "disabled" : ""}></td>
-          <td class="item-subtotal-text text-right">${window.formatNumber(item.subtotal)} đ</td>
-          <td class="text-center">${isReadOnly ? "" : `<button class="btn-delete-row" onclick="window.removeOrderItem(${index})">❌</button>`}</td>
-        </tr>`;
+            return `<tr><td>${item.base_name}</td><td>${fillingSelectHtml}</td><td class="text-right">${window.formatNumber(unitPrice)} đ</td><td class="text-center"><input type="number" class="item-qty-input" value="${item.qty}" min="1" oninput="window.updateOrderItemQty(${index}, this.value)" ${isReadOnly ? "disabled" : ""}></td><td class="item-subtotal-text text-right">${window.formatNumber(item.subtotal)} đ</td><td class="text-center">${isReadOnly ? "" : `<button class="btn-delete-row" onclick="window.removeOrderItem(${index})">❌</button>`}</td></tr>`;
           })
           .join("")
       : `<tr><td colspan="6" class="no-data text-center">Chưa chọn bánh nào</td></tr>`;
-
     if ($("o-total-amount-display"))
       $("o-total-amount-display").innerText = window.formatNumber(total) + " đ";
   };
@@ -679,10 +693,8 @@
   window.saveOrder = async () => {
     const modal = $("order-modal");
     if (modal?.hasAttribute("data-readonly")) return;
-
     const customerName = $("o-customer")?.value.trim();
     const date = $("o-date")?.value || null;
-
     if (!customerName)
       return window.showToast?.("Nhập tên khách hàng!", "warning");
     if (!date) {
@@ -699,7 +711,6 @@
       modal.getAttribute("data-mode") === "add"
         ? "pending"
         : $("o-status").value;
-
     const totalAmount = window.orderState.items.reduce(
       (sum, item) => sum + item.subtotal,
       0,
@@ -709,7 +720,6 @@
     try {
       window.orderState.customersCache = null;
       let custId = window.orderState.selectedCustomerId;
-
       const itemsToSave = window.orderState.items.map((item) => {
         const itemCopy = { ...item };
         delete itemCopy.all_fillings;
@@ -720,8 +730,10 @@
         const query = phone
           ? "SELECT id FROM customers WHERE name=? AND phone=? LIMIT 1"
           : "SELECT id FROM customers WHERE name=? AND (phone IS NULL OR phone='') LIMIT 1";
-        const params = phone ? [customerName, phone] : [customerName];
-        const checkCust = await API.db_query(query, params);
+        const checkCust = await API.db_query(
+          query,
+          phone ? [customerName, phone] : [customerName],
+        );
         if (checkCust?.length) {
           custId = checkCust[0].id;
         } else {
@@ -769,11 +781,9 @@
         );
         window.showToast?.("Tạo đơn hàng mới thành công!", "success");
       }
-
       window.closeOrderModal();
       window.loadOrders();
     } catch (err) {
-      console.error(err);
       window.showToast?.("Có lỗi khi lưu đơn hàng!", "error");
     } finally {
       window.showLoader(false);

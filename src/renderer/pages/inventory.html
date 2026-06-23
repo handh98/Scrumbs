@@ -1,8 +1,8 @@
 <div>
   <div class="page-header">
     <h2 class="title-primary">
-      <img src="src/renderer/assets/inventory.svg" alt="Inventory Icon" /> Menu
-      Bánh Quản Lý Kho
+      <img src="src/renderer/assets/inventory.svg" alt="Inventory Icon" /> Quản
+      Lý Vật Tư & Kho
     </h2>
     <div class="header-actions">
       <div class="search-wrapper">
@@ -11,12 +11,45 @@
           id="inventory-search"
           placeholder="🔍 Tìm tên vật tư..."
           oninput="window.searchInventory()"
+          autocomplete="off"
+          spellcheck="false"
         />
       </div>
-      <button class="btn-primary" onclick="window.openImportModal()">
-        + Nhập Kho
+      <button
+        class="btn-secondary"
+        style="border-color: var(--color-primary); color: var(--color-primary)"
+        onclick="window.openBulkImportModal()"
+      >
+        + Tạo Phiếu Nhập
+      </button>
+      <button class="btn-primary" onclick="window.openIngredientModal('add')">
+        + Thêm Định Nghĩa
       </button>
     </div>
+  </div>
+
+  <div class="tab-container">
+    <button
+      class="tab-btn active"
+      data-type="all"
+      onclick="window.switchInvTab('all')"
+    >
+      Tất cả
+    </button>
+    <button
+      class="tab-btn"
+      data-type="ingredient"
+      onclick="window.switchInvTab('ingredient')"
+    >
+      Nguyên liệu
+    </button>
+    <button
+      class="tab-btn"
+      data-type="package"
+      onclick="window.switchInvTab('package')"
+    >
+      Bao bì / Đóng gói
+    </button>
   </div>
 
   <div class="table-container">
@@ -25,10 +58,10 @@
         <tr>
           <th style="width: 5%">STT</th>
           <th style="width: 25%">Tên vật tư</th>
-          <th style="width: 15%">Đơn vị</th>
+          <th style="width: 15%">Giá bình quân</th>
           <th style="width: 15%">Tổng Tồn Kho</th>
-          <th style="width: 25%">Trạng thái</th>
-          <th style="width: 15%">Thao tác</th>
+          <th style="width: 15%">Trạng thái</th>
+          <th style="width: 25%" class="text-center">Thao tác</th>
         </tr>
       </thead>
       <tbody id="inventory-list-body"></tbody>
@@ -37,96 +70,291 @@
   <div id="inventory-pagination" class="pagination-wrapper"></div>
 </div>
 
-<div id="import-modal" class="modal-overlay" style="display: none">
-  <div id="import-modal-card" class="modal-card">
+<div
+  id="ingredient-modal"
+  class="modal-overlay"
+  will-change="transform, opacity"
+>
+  <div class="modal-card" style="width: 480px">
     <div class="modal-header">
-      <h3>Thêm Lô Hàng Mới</h3>
-      <button class="btn-close-modal" onclick="window.closeImportModal()">
+      <h3 id="ing-modal-title">Thêm Vật Tư</h3>
+      <button class="btn-close-modal" onclick="window.closeIngredientModal()">
         ✕
       </button>
     </div>
     <div class="modal-body">
-      <div class="form-group">
-        <label>Chọn vật tư:</label>
-        <select id="imp-ing-id"></select>
+      <div class="form-group mb-md">
+        <label>Phân loại <span class="required">*</span></label>
+        <select id="ing-type" onchange="window.onIngTypeChange()">
+          <option value="ingredient">Nguyên liệu (Bột, Bơ, Sữa...)</option>
+          <option value="package">Bao bì (Hộp, Túi, Ruy băng...)</option>
+        </select>
       </div>
-      <div class="form-row-inv">
-        <div class="form-group half-width">
-          <label>Số lượng nhập <span class="required">*</span></label>
-          <input
-            type="number"
-            id="imp-qty"
-            placeholder="0.00"
-            min="0.1"
-            step="0.1"
-          />
+      <div class="form-group mb-md">
+        <label>Tên vật tư <span class="required">*</span></label>
+        <input
+          type="text"
+          id="ing-name"
+          placeholder="Ví dụ: Bột mì số 11..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+      <div class="form-row mb-md">
+        <div class="form-group flex-1">
+          <label>Đơn vị <span class="required">*</span></label>
+          <select id="ing-unit">
+            <option value="gam">Gam (g)</option>
+            <option value="ml">Mililit (ml)</option>
+            <option value="cái">Cái</option>
+            <option value="quả">Quả</option>
+            <option value="hộp">Hộp</option>
+          </select>
         </div>
-        <div class="form-group half-width">
-          <label
-            >Tổng giá nhập (cho lô hàng này)
-            <span class="required">*</span></label
-          >
+        <div class="form-group flex-1">
+          <label>Giá tham khảo</label>
           <input
             type="text"
-            id="imp-purchase-price"
-            placeholder="0"
+            id="ing-unit-price"
+            placeholder="Giá..."
             oninput="window.formatInputOnType(this)"
+            inputmode="numeric"
           />
         </div>
       </div>
-      <div class="form-row-inv">
-        <div class="form-group half-width">
-          <label>Hạn sử dụng (Expiry):</label>
-          <input type="date" id="imp-expiry" />
-        </div>
-        <div class="form-group half-width"></div>
-      </div>
       <div class="form-group">
-        <label>Ghi chú lô hàng (Nguồn cung cấp...):</label>
-        <textarea id="imp-note" placeholder="Nhập ghi chú..."></textarea>
+        <label>Ghi chú</label>
+        <textarea
+          id="ing-note"
+          rows="2"
+          placeholder="Ghi chú thêm..."
+          spellcheck="false"
+        ></textarea>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="window.closeImportModal()">
+    <div class="modal-footer" style="justify-content: flex-end; gap: 8px">
+      <button class="btn-secondary" onclick="window.closeIngredientModal()">
         Hủy
       </button>
-      <button class="btn-primary" onclick="window.saveImport()">Lưu kho</button>
+      <button class="btn-primary" onclick="window.saveIngredient(true)">
+        Lưu & Tiếp tục
+      </button>
+      <button class="btn-primary" onclick="window.saveIngredient(false)">
+        Lưu & Thoát
+      </button>
     </div>
   </div>
 </div>
 
-<div id="batch-modal" class="modal-overlay" style="display: none">
-  <div class="modal-card batch-card">
+<div
+  id="bulk-import-modal"
+  class="modal-overlay"
+  will-change="transform, opacity"
+>
+  <div
+    class="modal-card"
+    style="
+      width: 850px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+    "
+  >
     <div class="modal-header">
-      <h3>Chi tiết lô hàng</h3>
-      <div class="header-actions">
-        <button class="btn-close-modal" onclick="window.closeBatchModal()">
-          ✕
+      <h3>📝 Tạo Phiếu Nhập Kho</h3>
+      <button class="btn-close-modal" onclick="window.closeBulkImportModal()">
+        ✕
+      </button>
+    </div>
+    <div class="modal-body" style="overflow-y: auto">
+      <div class="form-row mb-md">
+        <div class="form-group flex-1">
+          <label>Nhà cung cấp / Nơi mua:</label>
+          <input
+            type="text"
+            id="bi-supplier"
+            placeholder="VD: Đại lý cô Tư, Siêu thị..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        <div class="form-group flex-1">
+          <label>Tình trạng thanh toán:</label>
+          <select id="bi-payment-status">
+            <option value="Đã thanh toán">✅ Đã thanh toán</option>
+            <option value="Mua nợ">⚠️ Mua nợ (Chưa trả)</option>
+          </select>
+        </div>
+        <div class="form-group flex-1">
+          <label>Ngày nhập:</label>
+          <input type="date" id="bi-date" />
+        </div>
+      </div>
+      <div class="form-group mb-lg">
+        <label>Ghi chú phiếu nhập:</label>
+        <input
+          type="text"
+          id="bi-note"
+          placeholder="Mã hóa đơn, người đi mua..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+
+      <div
+        class="section-label mb-sm"
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <span>Danh sách vật tư nhập kho</span>
+        <button
+          class="btn-secondary"
+          style="padding: 4px 12px; font-size: 13px"
+          onclick="window.addBulkImportRow()"
+        >
+          + Thêm dòng
         </button>
       </div>
+
+      <div
+        class="table-container m-0"
+        style="
+          border: 1px solid var(--color-border-base);
+          box-shadow: none;
+          border-radius: 8px;
+        "
+      >
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40%">Tìm vật tư</th>
+              <th style="width: 15%" class="text-center">Số lượng</th>
+              <th style="width: 20%" class="text-right">Tổng tiền (đ)</th>
+              <th style="width: 18%" class="text-center">HSD (Tùy chọn)</th>
+              <th style="width: 7%"></th>
+            </tr>
+          </thead>
+          <tbody id="bulk-import-body"></tbody>
+        </table>
+      </div>
+
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 16px;
+          padding: 12px;
+          background: var(--neutral-100);
+          border-radius: 8px;
+        "
+      >
+        <span style="color: var(--neutral-700)"
+          >Số mặt hàng: <b id="bi-total-items">0</b></span
+        >
+        <span style="font-size: 16px"
+          >Tổng hóa đơn:
+          <b
+            id="bi-total-amount"
+            style="color: var(--color-highlight-danger); font-size: 20px"
+            >0 đ</b
+          ></span
+        >
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="window.closeBulkImportModal()">
+        Hủy bỏ
+      </button>
+      <button class="btn-primary" onclick="window.saveBulkImport()">
+        ✅ Chốt Nhập Kho
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="waste-modal" class="modal-overlay" will-change="transform, opacity">
+  <div class="modal-card" style="width: 450px">
+    <div class="modal-header">
+      <h3 style="color: var(--color-highlight-danger)">🗑️ Báo Cáo Hao Hụt</h3>
+      <button class="btn-close-modal" onclick="window.closeWasteModal()">
+        ✕
+      </button>
     </div>
     <div class="modal-body">
-      <h3 id="batch-ingredient-name"></h3>
-      <div class="table-container">
+      <div class="form-group mb-md">
+        <label>Vật tư xuất hủy:</label>
+        <input
+          type="text"
+          id="waste-ing-name"
+          disabled
+          style="font-weight: bold; background: var(--neutral-200)"
+        />
+        <input type="hidden" id="waste-ing-id" />
+      </div>
+      <div class="form-group mb-md">
+        <label>Số lượng hỏng/mất <span class="required">*</span></label>
+        <input
+          type="number"
+          id="waste-qty"
+          placeholder="Nhập số lượng..."
+          min="0.1"
+          step="0.1"
+          inputmode="decimal"
+        />
+      </div>
+      <div class="form-group">
+        <label>Lý do xuất hủy <span class="required">*</span></label>
+        <select id="waste-reason">
+          <option value="Hết hạn sử dụng">Hết hạn sử dụng</option>
+          <option value="Hư hỏng/Mốc/Chảy">Hư hỏng / Ẩm mốc</option>
+          <option value="Thực hành/Thử nghiệm">Làm hư khi thực hành</option>
+          <option value="Lý do khác">Lý do khác</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="window.closeWasteModal()">
+        Hủy
+      </button>
+      <button
+        class="btn-primary"
+        style="background: var(--color-highlight-danger)"
+        onclick="window.saveWastage()"
+      >
+        Chốt Xuất Hủy
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="batch-modal" class="modal-overlay" will-change="transform, opacity">
+  <div class="modal-card batch-card" style="width: 850px">
+    <div class="modal-header">
+      <h3 id="batch-ingredient-name">Chi tiết lô hàng</h3>
+      <button class="btn-close-modal" onclick="window.closeBatchModal()">
+        ✕
+      </button>
+    </div>
+    <div class="modal-body p-0">
+      <div class="table-container m-0" style="border: none; box-shadow: none">
         <table>
           <thead>
             <tr>
               <th>Ngày nhập</th>
-              <th>SL Ban đầu</th>
-              <th>Giá mua (Tổng/Đơn vị)</th>
-              <th>Còn lại</th>
-              <th>Hạn sử dụng</th>
-              <th>Ghi chú</th>
+              <th class="text-center">SL Nhập</th>
+              <th class="text-center">Đơn giá vốn</th>
+              <th class="text-center">Còn lại</th>
+              <th class="text-center">Hạn sử dụng</th>
+              <th>Ghi chú (NCC & TT)</th>
             </tr>
           </thead>
           <tbody id="batch-list-body"></tbody>
         </table>
       </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="window.closeBatchModal()">
-        Đóng
-      </button>
     </div>
   </div>
 </div>

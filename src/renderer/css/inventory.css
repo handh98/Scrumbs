@@ -1,39 +1,93 @@
-/* Trạng thái tồn kho */
+/* Kho Hàng - Bảng và Nhãn trạng thái */
 .status-badge {
   padding: 4px 10px;
-  border-radius: 12px;
-  font-size: var(--font-size-sm);
+  border-radius: 20px;
+  font-size: 12px;
   font-weight: 600;
   display: inline-block;
 }
 
 .status-ok {
-  background-color: var(--status-success-bg);
-  color: var(--status-success-text);
+  background-color: #d1fae5;
+  color: #065f46;
 }
 
 .status-low {
-  background-color: var(--status-warning-bg);
-  color: var(--status-warning-text);
+  background-color: #fef3c7;
+  color: #92400e;
 }
 
 .status-empty {
-  background-color: var(--status-error-bg);
-  color: var(--status-error-text);
+  background-color: #fee2e2;
+  color: #991b1b;
 }
 
-.half-width {
-  /* Class này có thể xóa sau khi cập nhật HTML sang .flex-1 */
+/* Picker Dropdown (Dành cho Nhập Hàng Loạt) */
+.picker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--color-border-base);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: none;
 }
 
-#import-modal-card {
-  width: 650px !important;
+.picker-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.batch-card {
-  width: 700px !important;
+.picker-item:hover {
+  background-color: #f8fafc;
 }
 
-#batch-list-body td {
+.picker-item-name {
+  font-weight: 500;
+  color: var(--color-primary-text);
+}
+
+.picker-no-result {
+  padding: 10px;
   text-align: center;
+  color: var(--neutral-500);
+  font-style: italic;
+}
+
+/* Bảng Lịch sử Lô hàng */
+.batch-card .table-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.batch-card th {
+  position: sticky;
+  top: 0;
+  background: var(--neutral-100);
+  z-index: 1;
+}
+
+/* Các trường input đặc biệt trong lưới Bulk Import */
+#bulk-import-body input[type="text"],
+#bulk-import-body input[type="number"],
+#bulk-import-body input[type="date"] {
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 6px;
+  border-radius: 4px;
+}
+
+#bulk-import-body input:hover,
+#bulk-import-body input:focus {
+  border-color: var(--color-primary);
+  background: white;
 }

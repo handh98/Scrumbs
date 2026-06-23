@@ -142,37 +142,244 @@
     }
   }
 
+  // --- ĐÃ CẬP NHẬT LOGIC TRỪ/HOÀN KHO CHO DASHBOARD ---
   window.updateDashboardOrderStatus = async (id, newStatus) => {
+    // Lấy trạng thái cũ từ CSDL để so sánh
+    let oldStatus = "pending";
     try {
-      if (
-        newStatus === "completed" &&
-        typeof window.showConfirm === "function"
-      ) {
+      const orderCheck = await API.db_query(
+        "SELECT status FROM orders WHERE id = ?",
+        [id],
+      );
+      if (orderCheck && orderCheck.length > 0) {
+        oldStatus = orderCheck[0].status;
+      }
+    } catch (err) {
+      console.error("Không lấy được trạng thái cũ:", err);
+    }
+
+    if (oldStatus === newStatus) return; // Nếu không đổi gì thì thoát
+
+    try {
+      // 1. Xác nhận thay đổi
+      if (newStatus === "completed" || newStatus === "cancelled") {
+        const confirmMsg =
+          newStatus === "cancelled"
+            ? `Xác nhận HỦY đơn hàng #${id}? Kho sẽ được hoàn trả (nếu đã trừ).`
+            : `Chốt đơn #${id} thành công? Đơn sẽ khóa chỉnh sửa.`;
+
+        if (typeof window.showConfirm === "function") {
+          const ok = await window.showConfirm(
+            "Xác nhận trạng thái",
+            confirmMsg,
+          );
+          if (!ok) {
+            window.loadDashboard(); // Reset UI (Đưa dropdown về trạng thái cũ)
+            return;
+          }
+        }
+      } else if (newStatus === "processing") {
         const ok = await window.showConfirm(
-          "Xác nhận hoàn thành",
-          `Chốt đơn #${id} thành công? Đơn sẽ khóa chỉnh sửa.`,
+          "Bắt đầu làm bánh",
+          `Đơn #${id} sẽ được mang đi làm. KHO SẼ BỊ TRỪ NGAY LẬP TỨC. Tiếp tục?`,
         );
         if (!ok) {
-          window.loadDashboard(); // Reset UI nếu hủy
+          window.loadDashboard();
           return;
         }
       }
+
+      await window.showLoader(true);
+
+      // 2. Kích hoạt logic Trừ/Hoàn kho (Y hệt Orders.js)
+      // Nếu chuyển từ Pending -> Processing/Completed: TRỪ KHO
+      if (
+        oldStatus === "pending" &&
+        (newStatus === "processing" || newStatus === "completed")
+      ) {
+        await deductInventoryFromOrderForDashboard(id);
+      }
+
+      // Nếu đơn đang làm/đã xong bị Hủy hoặc Trả về Pending: HOÀN KHO
+      if (
+        (oldStatus === "processing" || oldStatus === "completed") &&
+        (newStatus === "cancelled" || newStatus === "pending")
+      ) {
+        await restoreInventoryFromOrderForDashboard(id);
+      }
+
+      // 3. Cập nhật trạng thái vào CSDL
       await API.db_execute("UPDATE orders SET status = ? WHERE id = ?", [
         newStatus,
         id,
       ]);
-      if (typeof window.showToast === "function")
-        window.showToast("Cập nhật tiến độ thành công!", "success");
 
-      window.loadDashboard();
+      if (typeof window.showToast === "function") {
+        window.showToast("Cập nhật tiến độ thành công!", "success");
+      }
+
+      window.loadDashboard(); // Load lại toàn bộ Dashboard để biểu đồ và danh sách thiếu hụt tự update
     } catch (err) {
       console.error("Lỗi cập nhật trạng thái đơn:", err);
       const errorMsg = err.message || "Không thể cập nhật trạng thái đơn!";
-      if (typeof window.showToast === "function")
+      if (typeof window.showToast === "function") {
         window.showToast(errorMsg, "error");
-      window.loadDashboard();
+      }
+      window.loadDashboard(); // Load lại để UI reset về trạng thái cũ
+    } finally {
+      await window.showLoader(false);
     }
   };
+
+  // --- HÀM HỖ TRỢ: TRỪ KHO (Copy chuẩn từ Orders.js) ---
+  async function deductInventoryFromOrderForDashboard(orderId) {
+    try {
+      await API.db_execute("BEGIN TRANSACTION");
+      const [order] = await API.db_query(
+        "SELECT items_json FROM orders WHERE id = ?",
+        [orderId],
+      );
+      if (!order || !order.items_json) {
+        await API.db_execute("COMMIT");
+        return;
+      }
+
+      const items = JSON.parse(order.items_json);
+      for (const item of items) {
+        const itemLabel =
+          item.filling_name && item.filling_name !== "Không nhân"
+            ? `${item.base_name} (${item.filling_name})`
+            : item.base_name;
+
+        const ingredientsNeeded = await API.db_query(
+          `
+          SELECT ri.ingredient_id, (ri.qty * mr.ratio * ? / CAST(r.output AS REAL)) AS total_needed FROM menu_recipes mr JOIN recipe_ingredients ri ON mr.recipe_id = ri.recipe_id JOIN recipes r ON mr.recipe_id = r.id WHERE mr.menu_item_id = ?
+          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_ingredients WHERE menu_item_id = ?
+          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_packaging WHERE menu_item_id = ?
+        `,
+          [
+            item.qty,
+            item.menu_id,
+            item.qty,
+            item.menu_id,
+            item.qty,
+            item.menu_id,
+          ],
+        );
+
+        if (item.filling_id) {
+          const fillingIngs = await API.db_query(
+            "SELECT ri.ingredient_id, (ri.qty * ? / CAST(r.output AS REAL)) as total_needed FROM recipe_ingredients ri JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = ?",
+            [item.qty, item.filling_id],
+          );
+          ingredientsNeeded.push(...fillingIngs);
+        }
+
+        for (const ing of ingredientsNeeded) {
+          let remainingToDeduct = ing.total_needed;
+          const batches = await API.db_query(
+            "SELECT id, qty_remaining FROM inventory_batches WHERE ingredient_id = ? AND qty_remaining > 0 ORDER BY expiry_date ASC, import_date ASC",
+            [ing.ingredient_id],
+          );
+
+          for (const batch of batches) {
+            if (remainingToDeduct < 0.0001) break;
+            if (batch.qty_remaining >= remainingToDeduct) {
+              await API.db_execute(
+                "UPDATE inventory_batches SET qty_remaining = qty_remaining - ? WHERE id = ?",
+                [remainingToDeduct, batch.id],
+              );
+              remainingToDeduct = 0;
+            } else {
+              remainingToDeduct -= batch.qty_remaining;
+              await API.db_execute(
+                "UPDATE inventory_batches SET qty_remaining = 0 WHERE id = ?",
+                [batch.id],
+              );
+            }
+          }
+          if (remainingToDeduct > 0.0001) {
+            const [ingInfo] = await API.db_query(
+              "SELECT name, unit FROM ingredients WHERE id = ?",
+              [ing.ingredient_id],
+            );
+            throw new Error(
+              `Kho thiếu ${window.formatNumber(remainingToDeduct)} ${ingInfo.unit} "${ingInfo.name}" cho món "${itemLabel}"!`,
+            );
+          }
+        }
+      }
+      await API.db_execute("COMMIT");
+    } catch (err) {
+      await API.db_execute("ROLLBACK");
+      throw err;
+    }
+  }
+
+  async function restoreInventoryFromOrderForDashboard(orderId) {
+    try {
+      await API.db_execute("BEGIN TRANSACTION");
+      const [order] = await API.db_query(
+        "SELECT items_json FROM orders WHERE id = ?",
+        [orderId],
+      );
+      if (!order || !order.items_json) {
+        await API.db_execute("COMMIT");
+        return;
+      }
+
+      const items = JSON.parse(order.items_json);
+      for (const item of items) {
+        const ingredientsNeeded = await API.db_query(
+          `
+          SELECT ri.ingredient_id, (ri.qty * mr.ratio * ? / CAST(r.output AS REAL)) AS total_needed FROM menu_recipes mr JOIN recipe_ingredients ri ON mr.recipe_id = ri.recipe_id JOIN recipes r ON mr.recipe_id = r.id WHERE mr.menu_item_id = ?
+          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_ingredients WHERE menu_item_id = ?
+          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_packaging WHERE menu_item_id = ?
+        `,
+          [
+            item.qty,
+            item.menu_id,
+            item.qty,
+            item.menu_id,
+            item.qty,
+            item.menu_id,
+          ],
+        );
+
+        if (item.filling_id) {
+          const fillingIngs = await API.db_query(
+            "SELECT ri.ingredient_id, (ri.qty * ? / CAST(r.output AS REAL)) as total_needed FROM recipe_ingredients ri JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = ?",
+            [item.qty, item.filling_id],
+          );
+          ingredientsNeeded.push(...fillingIngs);
+        }
+
+        for (const ing of ingredientsNeeded) {
+          if (ing.total_needed <= 0) continue;
+          const [ingInfo] = await API.db_query(
+            "SELECT unit_price FROM ingredients WHERE id = ?",
+            [ing.ingredient_id],
+          );
+          const refundPrice = (ingInfo.unit_price || 0) * ing.total_needed;
+
+          await API.db_execute(
+            `INSERT INTO inventory_batches (ingredient_id, qty_imported, qty_remaining, import_date, purchase_price, note) VALUES (?, ?, ?, DATE('now'), ?, ?)`,
+            [
+              ing.ingredient_id,
+              ing.total_needed,
+              ing.total_needed,
+              refundPrice,
+              `[♻️ Hoàn trả kho do Hủy/Lùi đơn #${orderId} từ màn hình Tổng quan]`,
+            ],
+          );
+        }
+      }
+      await API.db_execute("COMMIT");
+    } catch (err) {
+      await API.db_execute("ROLLBACK");
+      throw err;
+    }
+  }
 
   // 3. PHÂN TÍCH NGUYÊN LIỆU THIẾU CHO CÁC ĐƠN ĐANG ĐẶT
   async function renderOrderShortages() {

@@ -34,8 +34,7 @@
       `;
       const orders = await API.db_query(sql, [startDate, endDate]);
 
-      // 3. Truy vấn bảng giá vốn hiện tại từ Menu để tính toán lợi nhuận
-      // (Vì items_json lưu giá bán, chúng ta cần so khớp để lấy giá vốn hiện tại)
+      // 3. Fallback: Truy vấn bảng giá vốn hiện tại từ Menu để phòng hờ cho các đơn HÀNG CŨ (trước khi có update snapshot)
       const menuCosts = await API.db_query(`
         SELECT id,
           (
@@ -51,7 +50,6 @@
         return acc;
       }, {});
 
-      // Lấy thêm giá vốn của các công thức nhân để tính toán chính xác
       const fillingCosts = await API.db_query(`
         SELECT r.id,
                (SELECT COALESCE(SUM(ri.qty * i.unit_price), 0) / CAST(r.output AS REAL)
@@ -80,7 +78,7 @@
         dPtr.setDate(dPtr.getDate() + 1);
       }
 
-      // Chuẩn bị dữ liệu cho Excel (Sheet 1)
+      // Chuẩn bị dữ liệu cho Excel
       const excelOrders = [];
 
       const orderRowsHtml = orders
@@ -96,14 +94,19 @@
           const items = JSON.parse(order.items_json || "[]");
 
           items.forEach((item) => {
-            // Cộng dồn số lượng bán
             productSales[item.base_name] =
               (productSales[item.base_name] || 0) + item.qty;
 
-            // Tính giá vốn: (Giá gốc món + Giá vốn nhân) * Số lượng
-            const baseUnitCost = costMap[item.menu_id] || 0;
+            // ĐÃ THAY ĐỔI: Ưu tiên lấy giá vốn chốt cứng trong snapshot.
+            // Nếu là đơn hàng tạo trước bản update này (không có thuộc tính base_cost), thì fallback lấy giá hiện tại
+            const baseUnitCost =
+              item.base_cost !== undefined
+                ? Number(item.base_cost)
+                : costMap[item.menu_id] || 0;
             const fillingUnitCost = item.filling_id
-              ? fillingCostMap[item.filling_id] || 0
+              ? item.filling_cost !== undefined
+                ? Number(item.filling_cost)
+                : fillingCostMap[item.filling_id] || 0
               : 0;
 
             orderCost += (baseUnitCost + fillingUnitCost) * item.qty;
@@ -116,7 +119,6 @@
           totalEstimatedCost += orderCost;
           const profit = order.total_amount - orderCost;
 
-          // Đẩy vào mảng Excel với tiêu đề tiếng Việt
           excelOrders.push({
             "Mã đơn": `#${order.id}`,
             "Ngày giao": order.delivery_date,
@@ -165,7 +167,6 @@
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
 
-      // Lưu lại để dùng cho export
       window.currentStatsData = {
         orders: excelOrders,
         products: sortedProducts.map((p) => ({
@@ -230,10 +231,7 @@
     const height = 260;
     const padding = 40;
 
-    const maxVal = Math.max(
-      ...dates.map((d) => dailyData[d].revenue),
-      100000, // Tỷ lệ tối thiểu
-    );
+    const maxVal = Math.max(...dates.map((d) => dailyData[d].revenue), 100000);
 
     const getX = (index) =>
       padding + (index * (width - 2 * padding)) / (dates.length - 1 || 1);
@@ -261,11 +259,9 @@
         profitPath += ` L ${x} ${yProfit}`;
       }
 
-      // Điểm nút
       markers += `<circle cx="${x}" cy="${yRev}" r="4" class="marker-rev"><title>${date}: ${window.formatNumber(rev)}đ</title></circle>`;
       markers += `<circle cx="${x}" cy="${yProfit}" r="4" class="marker-profit"><title>${date}: ${window.formatNumber(profit)}đ</title></circle>`;
 
-      // Nhãn trục X
       if (i % labelStep === 0 || i === dates.length - 1) {
         const label = date.split("-").slice(1).reverse().join("/");
         labels += `<text x="${x}" y="${height - 5}" text-anchor="middle" class="chart-axis-label">${label}</text>`;
@@ -274,15 +270,10 @@
 
     container.innerHTML = `
       <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
-        <!-- Trục và lưới -->
         <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="var(--neutral-400)" stroke-width="1" />
         <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="var(--neutral-400)" stroke-width="1" />
-
-        <!-- Đường doanh thu -->
         <path d="${revPath}" fill="none" stroke="#6366f1" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
-        <!-- Đường lợi nhuận -->
         <path d="${profitPath}" fill="none" stroke="#10b981" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
-
         ${labels}
         ${markers}
       </svg>
