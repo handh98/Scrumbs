@@ -2,6 +2,8 @@
   const itemsPerPage = 6;
   const API = window.electronAPI;
 
+  const $ = (id) => document.getElementById(id);
+
   window.orderState = {
     currentPage: 1,
     keyword: "",
@@ -137,6 +139,7 @@
       if (paginationContainer)
         paginationContainer.innerHTML = pagingResult.html;
     } catch (error) {
+      console.error(error);
       window.showToast?.("Lỗi tải đơn hàng!", "error");
     } finally {
       await window.showLoader(false);
@@ -443,7 +446,8 @@
 
       window.renderOrderItems();
       modal.classList.add("flex");
-    } catch (err) {
+    } catch (error) {
+      console.error(error);
       window.showToast?.("Lỗi", "error");
     } finally {
       window.showLoader(false);
@@ -783,7 +787,8 @@
       }
       window.closeOrderModal();
       window.loadOrders();
-    } catch (err) {
+    } catch (error) {
+      console.error(error);
       window.showToast?.("Có lỗi khi lưu đơn hàng!", "error");
     } finally {
       window.showLoader(false);

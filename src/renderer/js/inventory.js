@@ -2,6 +2,8 @@
   const itemsPerPage = 8;
   const API = window.electronAPI;
 
+  const $ = (id) => document.getElementById(id);
+
   window.invState = {
     currentPage: 1,
     keyword: "",
@@ -240,7 +242,8 @@
       } else {
         window.closeIngredientModal();
       }
-    } catch (err) {
+    } catch (error) {
+      console.error(error);
       window.showToast?.("Lỗi lưu vật tư!", "error");
     } finally {
       await window.showLoader(false);
@@ -280,7 +283,8 @@
 
       window.renderBulkImportRows();
       $("bulk-import-modal").classList.add("flex");
-    } catch (err) {
+    } catch (error) {
+      console.error(error);
       window.showToast?.("Lỗi tải dữ liệu", "error");
     } finally {
       await window.showLoader(false);
@@ -623,6 +627,7 @@
       }
       $("batch-modal").classList.add("flex");
     } catch (err) {
+      console.error(err);
       window.showToast?.("Lỗi tải lịch sử", "error");
     } finally {
       await window.showLoader(false);
