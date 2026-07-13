@@ -261,6 +261,8 @@ const initDB = async () => {
       recipe_id INTEGER,
       ingredient_id INTEGER,
       qty REAL NOT NULL,
+      type TEXT DEFAULT 'ingredient',
+      sub_recipe_id INTEGER,
       PRIMARY KEY (recipe_id, ingredient_id),
       FOREIGN KEY(recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
       FOREIGN KEY(ingredient_id) REFERENCES ingredients(id)
@@ -516,7 +518,7 @@ const initDB = async () => {
     db.get("SELECT version FROM schema_version LIMIT 1", (err, row) => {
       if (!row) {
         db.run("DELETE FROM schema_version");
-        db.run("INSERT INTO schema_version (version) VALUES (15)");
+        db.run("INSERT INTO schema_version (version) VALUES (16)");
       }
     });
 
@@ -1116,6 +1118,33 @@ async function upgradeDatabase() {
       await dbManager.run("INSERT INTO schema_version (version) VALUES (15)");
       currentVersion = 15;
       console.log("✅ Migration 15 thành công.");
+    }
+
+    // Migration 16: Thêm cột type và sub_recipe_id vào bảng recipe_ingredients
+    if (currentVersion < 16) {
+      console.log(
+        "🔧 Migration 16: Cập nhật cấu trúc bảng recipe_ingredients...",
+      );
+      const columns = await dbManager.all(
+        "PRAGMA table_info(recipe_ingredients)",
+      );
+
+      if (!columns.some((col) => col.name === "type")) {
+        await dbManager.run(
+          "ALTER TABLE recipe_ingredients ADD COLUMN type TEXT DEFAULT 'ingredient'",
+        );
+      }
+      if (!columns.some((col) => col.name === "sub_recipe_id")) {
+        await dbManager.run(
+          "ALTER TABLE recipe_ingredients ADD COLUMN sub_recipe_id INTEGER",
+        );
+      }
+
+      await dbManager.run("DELETE FROM schema_version");
+      await dbManager.run("INSERT INTO schema_version (version) VALUES (16)");
+      currentVersion = 16;
+      needsVacuum = true;
+      console.log("✅ Migration 16 thành công.");
     }
 
     if (needsVacuum) {
