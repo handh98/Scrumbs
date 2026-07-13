@@ -1,6 +1,6 @@
 {
   "name": "crumbs-app",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "main": "src/main/main.js",
   "scripts": {
     "start": "chcp 65001 > nul && electron .",
