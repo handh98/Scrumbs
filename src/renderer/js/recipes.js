@@ -135,8 +135,8 @@
 
     modal.querySelectorAll("#steps-list-container textarea").forEach((ta) => {
       ta.disabled = isView;
-      ta.style.resize = isView ? "none" : "";
     });
+
     if ($("recipe-image-upload")) $("recipe-image-upload").disabled = isView;
 
     updateImageUI();
@@ -327,7 +327,7 @@
       type: window.recipeState.pickerType,
     };
     $("ing-search-picker").value = name;
-    $("selected-ing-unit-lbl").innerText = unit;
+    $("selected-ing-unit-lbl").value = unit;
     $("ing-picker-dropdown").style.display = "none";
     $("ing-qty-picker").focus();
   };
@@ -343,6 +343,7 @@
   window.addIngredientToRecipe = () => {
     const qty = parseFloat($("ing-qty-picker").value);
     const item = window.recipeState.selectedPickerItem;
+    const unit = $("selected-ing-unit-lbl").value;
 
     if (!item)
       return window.showToast?.("Vui lòng chọn thành phần!", "warning");
@@ -355,7 +356,7 @@
       sub_recipe_id: item.type === "recipe" ? item.id : null,
       name: item.name,
       qty: qty,
-      unit: item.unit,
+      unit: unit,
       unit_price: item.price,
     });
 
@@ -517,12 +518,6 @@
 
     toggleInputStates();
     renderIngredientsStructure();
-    setTimeout(() => {
-      document.querySelectorAll(".step-textarea").forEach((ta) => {
-        ta.style.height = "auto";
-        ta.style.height = ta.scrollHeight + "px";
-      });
-    }, 50);
   }
 
   window.updateRecipeScale = (targetVal) => {
@@ -626,17 +621,10 @@
       <span class="step-number">${container.children.length + 1}</span>
       <textarea class="step-textarea"
                 ${isView ? "disabled" : ""}
-                placeholder="Mô tả công việc..."
-                ${isView ? " resize: none;" : ""}">${text}</textarea>
+                placeholder="Mô tả công việc...">${text}</textarea>
       <button type="button" class="btn-delete-row edit-visible" onclick="this.parentElement.remove(); window.reIndexSteps();">❌</button>
     `;
     container.appendChild(div);
-    const ta = div.querySelector("textarea");
-    if (ta)
-      setTimeout(() => {
-        ta.style.height = "auto";
-        ta.style.height = ta.scrollHeight + "px";
-      }, 10);
   };
 
   window.reIndexSteps = () => {

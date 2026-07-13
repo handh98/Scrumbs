@@ -360,7 +360,7 @@
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  color: var(--color-accent-primary, #e11d48) !important;
+  color: var(--color-accent-primary) !important;
   transition: background 0.2s !important;
 }
 .upload-overlay:hover {
@@ -428,6 +428,8 @@
   font-weight: bold !important;
   flex-shrink: 0 !important;
 }
+
+/* HIỆU CHỈNH KÍCH THƯỚC TRƯỜNG NHẬP TEXTAREA */
 #recipe-modal .step-textarea {
   flex: 1 !important;
   border: 1px solid #e2e8f0 !important;
@@ -436,7 +438,10 @@
   font-size: 14px !important;
   min-height: 38px !important;
   margin: 0 !important;
-  field-sizing: content;
+  field-sizing: content !important; /* Tự động co giãn bao trọn theo nội dung */
+  height: auto !important; /* Ngăn chặn JS gán cứng chiều cao gây sinh lỗi thanh cuộn */
+  resize: none !important; /* Ẩn ký hiệu kéo giãn ở góc phải dưới */
+  overflow: hidden !important; /* Vô hiệu hóa triệt để sự xuất hiện của thanh trượt */
 }
 
 .btn-delete-row {
@@ -512,12 +517,16 @@
   font-weight: 600 !important;
 }
 
+/* ĐỒNG BỘ HIỆU CHỈNH Ở MODE XEM */
 #recipe-modal.view-mode .step-textarea {
   color: var(--color-text-primary) !important;
   background-color: var(--bg-scaled-qty) !important;
-  border: 1px solid var(--color-accent-primary);
+  border: 1px solid var(--color-accent-primary) !important;
   padding: 10px 14px !important;
-  field-sizing: content;
+  field-sizing: content !important;
+  height: auto !important;
+  resize: none !important;
+  overflow: hidden !important;
 }
 
 #recipe-modal.view-mode .input-unit-wrapper {

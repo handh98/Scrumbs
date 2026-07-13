@@ -303,7 +303,7 @@ ipcMain.handle("get-app-version", () => {
 });
 
 ipcMain.handle("install-update", () => {
-  autoUpdater.quitAndInstall();
+  autoUpdater.quitAndInstall(true, true);
 });
 
 // Hàm tự động giữ lại tối đa 5 file log gần nhất
