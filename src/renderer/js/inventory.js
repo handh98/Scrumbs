@@ -234,8 +234,10 @@
       window.invalidateAndReload("menuSourceData", null);
       window.loadInventory();
 
-      if (isContinue && !window.invState.editingIngId) {
-        // Chế độ nhập liên tục: Xóa tên, giá, giữ Unit và Type
+      if (isContinue) {
+        // Chế độ nhập liên tục: Xóa tên, giá, giữ Unit và Type, chuyển về mode thêm mới
+        window.invState.editingIngId = null;
+        $("ing-modal-title").innerText = "Thêm Vật Tư Mới";
         $("ing-name").value = "";
         $("ing-unit-price").value = "";
         setTimeout(() => $("ing-name").focus(), 50);

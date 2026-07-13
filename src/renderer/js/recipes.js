@@ -112,7 +112,8 @@
       );
       toggleBtn.innerHTML = isView ? "Chỉnh Sửa" : "Xem Chi Tiết";
     }
-
+    if ($("modal-title"))
+      $("modal-title").innerText = isView ? "Chi Tiết" : "Chỉnh Sửa Công Thức";
     if ($("btn-save-recipe"))
       $("btn-save-recipe").style.display = isView ? "none" : "inline-flex";
     if ($("export-pdf-btn")) {
@@ -302,9 +303,9 @@
       dropdown.innerHTML = filtered
         .map(
           (i) => `
-        <div style="padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;"
+        <div class="picker-item"
              onmousedown="window.selectPickerItem(${i.id}, '${escAttr(i.name)}', '${i.unit}', ${i.unit_price || 0})">
-          ${escAttr(i.name)} (${i.unit})
+          <span>${escAttr(i.name)} (${i.unit})</span>
         </div>
       `,
         )
@@ -405,7 +406,11 @@
       $("recipe-image-preview").src = recipePlaceholderUrl;
     if ($("modal-title"))
       $("modal-title").innerText =
-        mode === "view" ? "Chi Tiết" : mode === "edit" ? "Sửa" : "Thêm Mới";
+        mode === "view"
+          ? "Chi Tiết"
+          : mode === "edit"
+            ? "Chỉnh Sửa Công Thức"
+            : "Thêm Mới";
 
     toggleInputStates();
     await window.showLoader(true);
@@ -494,6 +499,20 @@
     if (window.recipeState.currentModalMode === "edit") {
       $("rec-output-text").value = window.recipeState.originalOutput;
       window.recipeState.scaleFactor = 1;
+    } else {
+      window.recipeState.recipeImageDeleted = false;
+      window.recipeState.currentImageFile = null;
+      if (
+        window.recipeState.currentViewedRecipe &&
+        window.recipeState.currentViewedRecipe.image_path
+      ) {
+        $("recipe-image-preview").src =
+          `app-img:///` +
+          window.recipeState.currentViewedRecipe.image_path.replace(/\\/g, "/");
+      } else {
+        $("recipe-image-preview").src = recipePlaceholderUrl;
+      }
+      if ($("recipe-image-upload")) $("recipe-image-upload").value = "";
     }
 
     toggleInputStates();
@@ -608,8 +627,7 @@
       <textarea class="step-textarea"
                 ${isView ? "disabled" : ""}
                 placeholder="Mô tả công việc..."
-                oninput="this.style.height='auto'; this.style.height=(this.scrollHeight)+'px';"
-                style="overflow: hidden;${isView ? " resize: none;" : ""}">${text}</textarea>
+                ${isView ? " resize: none;" : ""}">${text}</textarea>
       <button type="button" class="btn-delete-row edit-visible" onclick="this.parentElement.remove(); window.reIndexSteps();">❌</button>
     `;
     container.appendChild(div);

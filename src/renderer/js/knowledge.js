@@ -319,6 +319,15 @@
             [parseInt(category_id, 10), title, summary, content],
           );
           window.showToast?.("Đã thêm bài viết thành công! ✨", "success");
+
+          // Reset filters and pagination so the new article is visible
+          this.state.currentPage = 1;
+          this.state.keyword = "";
+          this.state.selectedCategory = "ALL";
+
+          const searchInput = $("knowledge-search");
+          if (searchInput) searchInput.value = "";
+          KnowledgeUI.renderCategoryFilters(this.state.categories, "ALL");
         } else {
           await API.db_execute(
             "UPDATE baking_knowledge SET category_id = ?, title = ?, summary = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",

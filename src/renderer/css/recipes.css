@@ -1,5 +1,6 @@
 #recipe-modal .modal-card {
   width: 95% !important;
+  max-width: 1100px !important;
   margin: auto !important;
   box-sizing: border-box !important;
   border-radius: 16px !important;
@@ -50,15 +51,15 @@
   display: block !important;
   font-size: 15px !important;
   font-weight: 700 !important;
-  color: #334155 !important;
+  color: var(--color-highlight-danger) !important;
   margin-bottom: 12px !important;
 }
 
 /* --- THÔNG TIN CHÍNH --- */
 #recipe-modal #rec-name {
-  font-size: 20px !important;
+  font-size: 18px !important;
   font-weight: 600 !important;
-  color: #1e293b !important;
+  color: var(--color-text-primary) !important;
   border: 1px solid #e2e8f0 !important;
   border-radius: 8px !important;
   padding: 10px 14px !important;
@@ -313,9 +314,8 @@
 #recipe-modal .image-preview-container {
   width: 100% !important;
   height: 250px !important;
-  border: 1px solid #e2e8f0 !important;
+  border: 1px dashed #cbd5e1 !important;
   border-radius: 12px !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
   position: relative !important;
   display: flex !important;
   align-items: center !important;
@@ -327,7 +327,10 @@
 #recipe-modal .image-preview-container img {
   width: 100% !important;
   height: 100% !important;
-  object-fit: cover !important;
+  object-fit: contain !important;
+  padding: 8px !important;
+  box-sizing: border-box !important;
+  border-radius: 12px !important;
 }
 
 #steps-list-container {
@@ -351,21 +354,38 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(248, 250, 252, 0.85) !important;
+  background: transparent !important;
   display: flex; /* Bỏ !important để JS điều khiển được */
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  color: #64748b !important;
+  color: var(--color-accent-primary, #e11d48) !important;
+  transition: background 0.2s !important;
 }
-.upload-icon {
-  font-size: 32px !important;
-  margin-bottom: 2px !important;
+.upload-overlay:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+.upload-icon-wrapper {
+  background: rgba(255, 255, 255, 0.9) !important;
+  padding: 12px !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  margin-bottom: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 .upload-text {
-  font-size: 13px !important;
-  font-weight: 500 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  padding: 4px 12px !important;
+  border-radius: 20px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+}
+.upload-subtext {
+  display: none !important;
 }
 
 #recipe-modal .btn-clear-image {
@@ -416,6 +436,7 @@
   font-size: 14px !important;
   min-height: 38px !important;
   margin: 0 !important;
+  field-sizing: content;
 }
 
 .btn-delete-row {
@@ -484,16 +505,19 @@
   pointer-events: none !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
-  color: #0f172a !important;
+  color: var(--color-text-primary) !important;
   opacity: 1 !important;
-  -webkit-text-fill-color: #0f172a !important;
+  -webkit-text-fill-color: var(--color-text-primary) !important;
   box-shadow: none !important;
+  font-weight: 600 !important;
 }
 
 #recipe-modal.view-mode .step-textarea {
+  color: var(--color-text-primary) !important;
   background-color: var(--bg-scaled-qty) !important;
   border: 1px solid var(--color-accent-primary);
   padding: 10px 14px !important;
+  field-sizing: content;
 }
 
 #recipe-modal.view-mode .input-unit-wrapper {
@@ -504,5 +528,5 @@
 #recipe-modal.view-mode .input-unit-text {
   background: transparent !important;
   border: none !important;
-  color: #0f172a !important;
+  color: var(--color-text-primary) !important;
 }
