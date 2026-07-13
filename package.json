@@ -1,6 +1,6 @@
 {
   "name": "crumbs-app",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "main": "src/main/main.js",
   "scripts": {
     "start": "chcp 65001 > nul && electron .",
@@ -52,7 +52,7 @@
         "provider": "github",
         "owner": "handh98",
         "repo": "Scrumbs",
-        "releaseType": "release"
+        "releaseType": "draft"
       }
     ],
     "win": {
