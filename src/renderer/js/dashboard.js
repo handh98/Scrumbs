@@ -19,7 +19,6 @@
 
       const currentMonthPattern = todayStr.substring(0, 7) + "%";
 
-      // Load song song tất cả các widget để tăng tốc độ hiển thị UI
       const results = await Promise.allSettled([
         renderKPICards(currentMonthPattern, todayStr),
         renderUrgentOrders(todayStr, tomorrowStr),
@@ -29,7 +28,6 @@
         renderStickyNotes(),
       ]);
 
-      // Check for any failed promises
       const failedIndex = results.findIndex((r) => r.status === "rejected");
       if (failedIndex >= 0) {
         const error = results[failedIndex].reason;
@@ -48,7 +46,6 @@
     }
   };
 
-  // 1. TÍNH TOÁN CÁC THẺ CHỈ SỐ KPI (Tối ưu truy vấn song song)
   async function renderKPICards(monthPattern, todayStr) {
     try {
       const [revRes, todayRes, procRes] = await Promise.all([
@@ -142,9 +139,7 @@
     }
   }
 
-  // --- ĐÃ CẬP NHẬT LOGIC TRỪ/HOÀN KHO CHO DASHBOARD ---
   window.updateDashboardOrderStatus = async (id, newStatus) => {
-    // Lấy trạng thái cũ từ CSDL để so sánh
     let oldStatus = "pending";
     try {
       const orderCheck = await API.db_query(

@@ -579,6 +579,8 @@
           const sellingPrice = item.selling_price || 0; // Luôn lấy selling_price từ DB, nếu 0 thì hiển thị 0
           const margin = item.profit_margin || 0; // Lấy lợi nhuận trực tiếp từ DB
 
+          const profitAmount = Math.round(sellingPrice * (margin / 100));
+
           const fillingBadge =
             item.filling_count > 0
               ? `<div style="font-size: 11px; color: #bcaaa4; margin-top: 2px;">(${item.filling_count} loại nhân)</div>`
@@ -597,7 +599,10 @@
             <td class="text-center">${globalIndex}</td>
             <td class="text-center text-500">${item.name}${fillingBadge}</td>
             <td class="text-center text-highlight">${priceDisplay}</td>
-            <td class="text-center">${margin.toFixed(2)}%</td>
+            <td class="text-center">
+              <div class="font-weight-bold" style="color: var(--status-success-text);">${window.formatNumber(profitAmount)}đ</div>
+              <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 2px;">${margin.toFixed(2)}%</div>
+            </td>
             <td class="text-center note-column has-tooltip" data-note="${note}">${note}</td>
             <td class="text-center action-column">
               <button class="btn-secondary btn-edit" onclick="window.editMenu(${item.id})" title="Chỉnh sửa"><img src="src/renderer/assets/edit.svg" class="icon" /></button>

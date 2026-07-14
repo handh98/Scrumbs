@@ -1,141 +1,3 @@
-.sticky-notes-panel {
-  margin-top: var(--space-xl);
-}
-
-.sticky-notes-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--space-lg);
-  padding: var(--space-sm) var(--space-xs);
-}
-
-.sticky-note {
-  min-height: 160px;
-  padding: var(--space-md);
-  border-radius: 2px;
-  box-shadow: var(--shadow-sm);
-  position: relative;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-  transform: rotate(-1deg);
-}
-
-.sticky-note:nth-child(even) {
-  transform: rotate(1.5deg);
-}
-.sticky-note:nth-child(3n) {
-  transform: rotate(-2deg);
-}
-
-.sticky-note:hover {
-  transform: scale(1.05) rotate(0deg);
-  box-shadow: var(--shadow-md);
-  z-index: 10;
-}
-
-.add-note-card {
-  background-color: var(--neutral-300) !important;
-  border: 2px dashed var(--neutral-500);
-  justify-content: center;
-  align-items: center;
-  color: var(--neutral-800);
-  box-shadow: none;
-}
-
-.add-icon {
-  font-size: 40px;
-  margin-bottom: var(--space-xs);
-}
-
-.note-content {
-  flex: 1;
-  font-size: var(--font-size-md);
-  line-height: var(--line-height-base);
-  color: var(--neutral-900);
-  word-break: break-word;
-  overflow: hidden;
-}
-
-.note-date {
-  font-size: var(--font-size-xs);
-  color: var(--neutral-700);
-  margin-top: var(--space-sm);
-  text-align: right;
-}
-
-.delete-note-btn {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  background: none;
-  border: none;
-  font-size: var(--font-size-h3);
-  cursor: pointer;
-  opacity: 0.3;
-}
-.sticky-note:hover .delete-note-btn {
-  opacity: 0.8;
-  color: var(--status-error-text);
-}
-
-/* --- Prompt Modal & Overlays --- */
-.confirm-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(3px);
-  z-index: 9999;
-  display: none;
-  align-items: center;
-  justify-content: center;
-}
-
-.confirm-modal-overlay.flex {
-  display: flex;
-}
-
-.confirm-modal-card {
-  background: var(--color-white);
-  padding: var(--space-xl);
-  border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 450px;
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--neutral-300);
-}
-
-.prompt-input {
-  width: 100%;
-  margin: var(--space-md) 0;
-  padding: var(--space-sm) var(--space-md);
-  border: 1.5px solid var(--neutral-400);
-  border-radius: var(--radius-sm);
-  font-family: inherit;
-  font-size: var(--font-size-md);
-  resize: vertical;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.prompt-input:focus {
-  border-color: var(--color-interactive-primary);
-}
-
-.confirm-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-md);
-  margin-top: var(--space-md);
-}
-
-/* --- Dashboard Layout --- */
 .dashboard-wrapper {
   padding: var(--space-xl);
   display: flex;
@@ -205,7 +67,7 @@
 .dashboard-main-grid,
 .dashboard-charts-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr; /* 2/3 cho bảng, 1/3 cho thiếu hụt */
+  grid-template-columns: 2fr 1fr;
   gap: var(--space-xl);
 }
 
@@ -247,7 +109,7 @@
 .dashboard-table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 10px; /* Khoảng cách giữa các hàng */
+  border-spacing: 0 10px;
 }
 
 .dashboard-table th {
@@ -297,28 +159,27 @@
 .low-stock-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.low-stock-item {
-  background-color: var(--color-white);
-  border: 1px solid var(--color-border-info);
-  border-left: 5px solid var(--status-warning-text);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-md);
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 5px;
 }
 
 .low-stock-name {
   font-weight: 600;
-  color: var(--color-primary-text);
+  color: #2d3748;
+  word-break: break-word;
 }
 
 .low-stock-badge {
-  padding: 5px 10px;
-  border-radius: 5px;
+  background-color: #fed7d7;
+  color: red;
+  padding: 4px 12px;
+  border-radius: 20px;
   font-weight: 700;
   font-size: var(--font-size-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Charts Grid */
@@ -347,7 +208,7 @@
   width: 25px;
   background-color: var(--neutral-400);
   border-radius: 5px 5px 0 0;
-  height: 80%; /* Chiều cao tối đa của cột */
+  height: 80%;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
@@ -406,10 +267,12 @@
   background-color: var(--color-button-primary-base);
   height: 100%;
   border-radius: 5px;
-  transition: width 0s ease-out; /* Đặt 0s để tránh animation khi load */
+  transition: width 0s ease-out;
 }
 
-/* --- Sticky Notes --- */
+/* ========================================================================= */
+/* --- STICKY NOTES (Đã loại bỏ mã trùng lặp và sửa lỗi tràn văn bản) --- */
+/* ========================================================================= */
 .sticky-notes-panel {
   margin-bottom: var(--space-xl);
   border-bottom: 3px solid var(--color-background-active-item);
@@ -423,7 +286,7 @@
 #sticky-notes-section {
   max-height: 600px;
   overflow-y: auto;
-  margin: 0 -15px; /* Mở rộng vùng cuộn ra sát lề panel */
+  margin: 0 -15px;
   padding: 0 15px;
 }
 
@@ -431,13 +294,13 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--space-xl);
-  padding: var(--space-lg) var(--space-xl); /* Tăng thêm không gian để khi zoom 1.05 không bị clip */
+  padding: var(--space-lg) var(--space-xl);
 }
 
 .sticky-note {
   min-height: 180px;
   padding: var(--space-lg);
-  border-radius: 2px 2px 32px 2px; /* Hiệu ứng cong góc giấy dán */
+  border-radius: 2px 2px 32px 2px;
   box-shadow: var(--shadow-sm);
   position: relative;
   cursor: pointer;
@@ -447,7 +310,7 @@
   border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
-/* Tạo độ nghiêng tự nhiên cho ghi chú */
+/* Tạo độ nghiêng tự nhiên */
 .note-tilt-1 {
   transform: rotate(-1.5deg);
 }
@@ -464,6 +327,7 @@
   z-index: 10;
 }
 
+/* Nút thêm ghi chú */
 .add-note-card {
   background-color: #f8fafc !important;
   border: 2px dashed #cbd5e0 !important;
@@ -472,12 +336,11 @@
   color: #64748b;
   box-shadow: none !important;
   border-radius: var(--radius-lg) !important;
-  transform: rotate(
-    0deg
-  ) !important; /* Giữ nút thẳng để phân biệt với ghi chú */
+  transform: rotate(0deg) !important;
   transition: all 0.3s ease !important;
-  flex-direction: column; /* Đảm bảo là cột flex để gap hoạt động */
-  gap: 10px; /* Thay thế margin-bottom trên add-icon */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .add-note-card:hover {
@@ -506,13 +369,11 @@
 
 .add-note-card:hover .add-icon {
   background: var(--color-interactive-primary);
-  color: var(--color-white); /* Đặt màu cho currentColor của SVG */
   transform: scale(1.1) rotate(90deg);
 }
 
-/* Hiệu ứng chuyển icon sang màu trắng khi hover vào card */
 .add-note-card:hover .add-icon img {
-  /* filter: brightness(0) invert(1); */ /* Không cần nữa nếu SVG dùng currentColor */
+  filter: brightness(0) invert(1); /* Chuyển icon dấu cộng sang màu trắng khi hover */
 }
 
 .add-note-card p {
@@ -522,6 +383,7 @@
   letter-spacing: 0.5px;
 }
 
+/* Nội dung ghi chú */
 .note-content {
   flex: 1;
   font-size: var(--font-size-lg);
@@ -529,8 +391,14 @@
   color: #374151;
   font-weight: 500;
   word-break: break-word;
-  overflow: hidden;
   font-family: inherit;
+
+  /* SỬA LỖI CHỮ DÀI: Giới hạn tối đa hiển thị 5 dòng và tự động thêm dấu "..." */
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .note-date {
@@ -541,6 +409,7 @@
   font-style: italic;
 }
 
+/* Nút xóa ghi chú */
 .delete-note-btn {
   position: absolute;
   top: 8px;
@@ -559,4 +428,22 @@
 
 .sticky-note:hover .delete-note-btn {
   color: rgba(0, 0, 0, 0.4);
+}
+
+.low-stock-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.low-stock-list::-webkit-scrollbar-track {
+  background: var(--color-background-app); /* Nền hồng nhạt */
+  border-radius: 10px;
+}
+
+.low-stock-list::-webkit-scrollbar-thumb {
+  background: var(--color-accent-primary); /* Màu hồng pastel nhấn */
+  border-radius: 10px;
+}
+
+.low-stock-list::-webkit-scrollbar-thumb:hover {
+  background: var(--color-button-primary-dark); /* Màu hồng đậm hơn khi hover */
 }
