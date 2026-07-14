@@ -136,8 +136,7 @@
 }
 
 body {
-  font-family:
-    "Quicksand", "Segoe UI", cursive, sans-serif; /* Giữ nguyên font-family */
+  font-family: "Quicksand", "Segoe UI", cursive, sans-serif;
   background-color: var(--color-background-app);
   color: var(--color-primary-text);
   height: 100vh;
@@ -162,7 +161,7 @@ body {
 }
 
 .sidebar-title {
-  font-size: var(--font-size-h1); /* 1.5rem ~ 24px, dùng h1 cho tiêu đề lớn */
+  font-size: var(--font-size-h1);
   font-weight: 900;
   text-align: center;
   margin-bottom: var(--space-xxl);
@@ -319,13 +318,8 @@ body {
 }
 
 .tab-btn.active:hover {
-  background: var(
-    --color-primary-text-hover
-  ) !important; /* Thay đổi màu nền nhẹ khi hover tab active */
-  transform: translateY(
-    -1px
-  ); /* Giữ nguyên độ nâng của tab active, không nâng thêm */
-  box-shadow: var(--shadow-md); /* Giữ nguyên bóng đổ của tab active */
+  background: var(--color-primary-text-hover) !important;
+  transform: translateY(-1px);
 }
 
 @keyframes fadeInEffect {
@@ -345,11 +339,10 @@ body {
   height: 16px;
   object-fit: contain;
   vertical-align: middle;
-  stroke: currentColor; /* Đảm bảo SVG paths sử dụng màu từ thuộc tính 'color' của CSS */
+  stroke: currentColor;
 }
 
 /* --- COMMON COMPONENTS --- */
-/* Utility Flexbox (Tailwind-style) */
 .flex {
   display: flex !important;
 }
@@ -441,7 +434,6 @@ body {
 .flex-3 {
   flex: 3;
 }
-
 .flex-05 {
   flex: 0.5;
 }
@@ -478,7 +470,7 @@ body {
 h1,
 h2,
 h3 {
-  color: var(--color-primary-text); /* Giữ nguyên vì đã dùng biến màu */
+  color: var(--color-primary-text);
   font-weight: 700;
 }
 
@@ -586,7 +578,7 @@ label {
   background: var(--color-white);
   color: var(--color-button-primary-base);
   border: 2px solid var(--color-button-primary-base);
-  padding: 8px 16px; /* -2px so với primary để bù trừ cho 2px border, giữ tổng chiều cao bằng nhau */
+  padding: 8px 16px;
   border-radius: var(--radius-md);
   font-size: var(--font-size-md);
   font-weight: bold;
@@ -605,19 +597,17 @@ label {
 .btn-delete .icon,
 .btn-edit .icon,
 .btn-view .icon {
-  color: var(
-    --color-button-primary-base
-  ); /* Màu mặc định cho icon trong nút secondary */
+  color: var(--color-button-primary-base);
 }
 
 .btn-delete:hover .icon {
-  color: var(--color-highlight-danger); /* Màu đỏ khi hover nút xóa */
+  color: var(--color-highlight-danger);
 }
 .btn-edit:hover .icon {
-  color: var(--color-interactive-primary); /* Màu xanh khi hover nút sửa */
+  color: var(--color-interactive-primary);
 }
 .btn-view:hover .icon {
-  color: var(--success-green); /* Màu xanh lá khi hover nút xem */
+  color: var(--success-green);
 }
 
 .btn-save-edit {
@@ -664,6 +654,32 @@ textarea {
   box-shadow: var(--shadow-xs);
   font-family: inherit;
 }
+
+/* ========================================================================= */
+/* FIX: Reset style cho radio và checkbox để không bị viền chữ nhật như text */
+/* ========================================================================= */
+input[type="radio"],
+input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  box-shadow: none;
+  background-color: transparent;
+  cursor: pointer;
+  accent-color: var(--color-highlight-danger); /* Thêm màu đồng bộ với app */
+}
+input[type="radio"]:hover,
+input[type="checkbox"]:hover {
+  border-color: transparent;
+}
+input[type="radio"]:focus,
+input[type="checkbox"]:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+/* ========================================================================= */
 
 select {
   appearance: none;
@@ -744,7 +760,7 @@ textarea:disabled {
 .autocomplete-dropdown.show {
   display: block;
 }
-/* Mặc định ẩn các dropdown khi không có class .show */
+
 .picker-dropdown,
 .autocomplete-dropdown {
   display: none;
@@ -764,13 +780,11 @@ textarea:disabled {
 .dropdown-item:hover {
   background-color: var(--color-button-primary-hover);
 }
-/* Bỏ gạch ngang dưới item cuối cùng trong dropdown cho gọn gàng */
 .picker-item:last-child,
 .dropdown-item:last-child {
   border-bottom: none;
 }
 
-/* Đồng bộ size input/select trong bảng đặt bánh (modal order) */
 #order-items-body input,
 #order-items-body select,
 .order-item-input {
@@ -832,12 +846,11 @@ textarea:disabled {
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  /* Mặc định chặn tương tác khi ẩn để không gây "tấm kính tàng hình" */
   pointer-events: none;
 }
 .modal-overlay.flex,
 .confirm-modal-overlay.flex {
-  pointer-events: auto; /* Chỉ cho phép tương tác khi có class flex (đang hiện) */
+  pointer-events: auto;
 }
 .modal-card,
 .confirm-modal-card {
@@ -865,7 +878,6 @@ textarea:disabled {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.3px;
-  /* Thay đổi font chữ tiêu đề để dễ nhìn hơn theo yêu cầu */
   font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   text-transform: none;
 }
@@ -951,12 +963,9 @@ table tbody tr:hover {
   background-color: var(--color-button-primary-hover);
 }
 
-/* Hiệu ứng sọc dưa (Zebra-striping) - Phủ màu hồng sữa rất nhạt cho các dòng chẵn */
 table tbody tr:nth-child(even) {
   background-color: var(--color-border-table-row);
 }
-
-/* Đảm bảo hiệu ứng hover luôn đè lên màu sọc dưa */
 table tbody tr:hover {
   background-color: var(--color-button-primary-hover) !important;
 }
@@ -996,7 +1005,7 @@ table tbody tr:hover {
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   pointer-events: none;
-  z-index: 20000; /* Đảm bảo nằm trên cả Modal (10000) và Toast (10001) */
+  z-index: 20000;
   box-shadow: var(--shadow-lg);
   max-width: 250px;
   line-height: var(--line-height-snug);
@@ -1016,7 +1025,6 @@ table tbody tr:hover {
   color: var(--color-highlight-danger);
 }
 
-/* Dashboard low stock item highlight */
 .low-stock-item {
   transition: background-color var(--transition-fast);
   border-radius: var(--radius-sm);
@@ -1025,7 +1033,6 @@ table tbody tr:hover {
   background-color: var(--color-button-primary-hover);
 }
 
-/* Hiệu ứng hover cho bảng đơn hàng khẩn cấp ở Dashboard */
 #urgent-orders-body tr:hover {
   background-color: var(--color-button-primary-hover);
   cursor: default;
@@ -1064,7 +1071,6 @@ table tbody tr:hover {
 }
 
 /* --- SHARED SELECTS & PICKERS --- */
-
 .status-quick-select {
   padding: 4px 8px;
   font-size: 13px;
@@ -1141,8 +1147,6 @@ table tbody tr:hover {
   color: var(--color-button-primary-base);
   padding: 0 5px;
 }
-
-/* Highlight từ khóa tìm kiếm */
 .search-highlight {
   background-color: var(--search-highlight);
   padding: 0 2px;
@@ -1161,10 +1165,6 @@ table tbody tr:hover {
 }
 
 /* --- SPACING UTILITIES --- */
-/* Format: {type}{direction}-{size} */
-/* Type: m (margin), p (padding) | Direction: t, b, l, r, x, y, (none) */
-/* Size: 0, xs, sm, md, lg, xl, xxl */
-
 .m-0 {
   margin: 0 !important;
 }
@@ -1227,6 +1227,23 @@ table tbody tr:hover {
 .mb-xxl {
   margin-bottom: var(--space-xxl) !important;
 }
+
+/* ========================================================================= */
+/* FIX: Bổ sung các class spacing số cứng bị thiếu mà HTML đang sử dụng      */
+/* ========================================================================= */
+.mt-10 {
+  margin-top: 10px !important;
+}
+.mt-15 {
+  margin-top: 15px !important;
+}
+.mb-10 {
+  margin-bottom: 10px !important;
+}
+.mb-15 {
+  margin-bottom: 15px !important;
+}
+/* ========================================================================= */
 
 .mx-sm {
   margin-left: var(--space-sm) !important;
@@ -1308,7 +1325,6 @@ table tbody tr:hover {
   padding-bottom: var(--space-md) !important;
 }
 
-/* Gaps */
 .gap-0 {
   gap: 0 !important;
 }
@@ -1325,7 +1341,6 @@ table tbody tr:hover {
   gap: var(--space-lg) !important;
 }
 
-/* Container chứa thanh bar */
 .update-progress-container {
   width: 80px;
   height: 6px;
@@ -1335,10 +1350,8 @@ table tbody tr:hover {
   margin: 0 8px;
 }
 
-/* Thanh bar thực tế */
 .update-progress-fill {
   height: 100%;
-  /* Dải màu rộng: Tím Indigo -> Xanh Emerald -> Vàng Gold */
   background: linear-gradient(
     90deg,
     var(--color-indigo),
@@ -1348,21 +1361,18 @@ table tbody tr:hover {
   background-size: 300% 100%;
   background-position: 0% 0%;
   border-radius: 10px;
-  /* Trượt dải màu mượt mà khi thay đổi trạng thái */
   transition:
     width 0.4s ease-out,
     background-position 0.8s ease;
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
 }
 
-/* Khi đạt gần 100%: Dịch chuyển dải màu để hiện tông Vàng rực rỡ */
 .update-progress-fill.is-nearly-done {
   background-position: 100% 0%;
   box-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
 }
 
 .update-bg-badge {
-  /* Đảm bảo badge ở góc màn hình hiển thị đẹp */
   display: flex;
   align-items: center;
   background: var(--color-indigo);
@@ -1376,7 +1386,6 @@ table tbody tr:hover {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Toast System */
 .toast-container {
   position: fixed;
   bottom: 20px;

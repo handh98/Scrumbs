@@ -98,7 +98,9 @@
 
           <div class="recipe-meta-row">
             <div class="form-group-col flex-1">
-              <label for="rec-type">Danh mục:</label>
+              <label class="section-title-label" for="rec-type"
+                >Danh mục:</label
+              >
               <select id="rec-type">
                 <option value="general">Chung</option>
                 <option value="crust">Vỏ bánh / Cốt bánh</option>
@@ -106,7 +108,9 @@
               </select>
             </div>
             <div class="form-group-col">
-              <label for="rec-cook-time">Thời gian:</label>
+              <label class="section-title-label" for="rec-cook-time"
+                >Thời gian:</label
+              >
               <div class="input-unit-wrapper">
                 <input
                   type="number"
@@ -118,7 +122,9 @@
               </div>
             </div>
             <div class="form-group-col">
-              <label for="rec-output-text">Định lượng:</label>
+              <label class="section-title-label" for="rec-output-text"
+                >Định lượng:</label
+              >
               <div class="input-unit-wrapper">
                 <input
                   type="number"
@@ -347,26 +353,26 @@
     <div class="modal-footer">
       <button
         id="export-pdf-btn"
-        class="btn-secondary"
+        class="btn-primary"
         onclick="window.exportRecipeToPdf()"
         style="display: none"
       >
-        📄 Xuất PDF
-      </button>
-      <button
-        type="button"
-        class="btn-close-outline"
-        onclick="window.closeRecipeModal()"
-      >
-        Đóng
+        Xuất PDF
       </button>
       <button
         type="button"
         id="btn-save-recipe"
-        class="btn-save-submit edit-visible"
+        class="btn-primary edit-visible"
         onclick="window.saveRecipe()"
       >
         Lưu công thức
+      </button>
+      <button
+        type="button"
+        class="btn-secondary"
+        onclick="window.closeRecipeModal()"
+      >
+        Đóng
       </button>
     </div>
   </div>

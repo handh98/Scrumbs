@@ -128,6 +128,12 @@
       $("view-k-title").innerText = article.title;
       $("view-k-date").innerText = `Ngày lưu: ${article.created_at}`;
 
+      const summaryEl = $("view-k-summary");
+      if (summaryEl) {
+        summaryEl.innerText = article.summary ? article.summary : "";
+        summaryEl.style.display = article.summary ? "block" : "none";
+      }
+
       const badge = $("view-k-badge");
       badge.innerText = article.cat_name || "Mặc định";
       badge.style.background = article.bg_color || DEFAULT_BG_COLOR;

@@ -151,6 +151,15 @@
   margin: 0;
 }
 
+.detail-summary {
+  font-size: var(--font-size-base, 14px);
+  color: var(--color-text-secondary, #666);
+  font-style: italic;
+  margin-top: 8px;
+  margin-bottom: 0;
+  line-height: var(--line-height-base);
+}
+
 .read-body {
   background-color: var(--neutral-150);
   border-radius: 8px;
