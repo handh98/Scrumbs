@@ -3,25 +3,6 @@
   padding: var(--space-sm) var(--space-xs);
 }
 
-/* Utilities (thay thế cho inline styles) */
-.mb-xs {
-  margin-bottom: var(--space-xs);
-  display: inline-block;
-}
-.action-group {
-  display: flex;
-  gap: 8px;
-}
-
-/* Thanh bộ lọc danh mục */
-#knowledge-cat-filters {
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-lg);
-}
-
-/* Hiệu ứng active sẽ giống hệt tab Recipes thông qua việc áp dụng style tương tự .tab-btn.active */
-
 /* Hệ thống lưới Blog Grid */
 .knowledge-grid {
   display: grid;
@@ -53,7 +34,7 @@
 .knowledge-card h3 {
   margin: var(--space-sm) 0 6px 0;
   color: var(--color-primary-text);
-  font-size: var(--font-size-xl); /* 17px ~ 16px (xl) hoặc 18px (h3) */
+  font-size: var(--font-size-xl);
   line-height: var(--line-height-snug);
 }
 
@@ -78,7 +59,7 @@
   grid-column: 1 / -1;
   text-align: center;
   padding: 50px;
-  color: var(--color-text-muted); /* Giữ nguyên vì đã dùng biến màu */
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
@@ -99,11 +80,6 @@
 }
 
 /* Modal Form Styles */
-.label-bold {
-  font-weight: bold; /* Giữ nguyên vì đã có biến font-weight-bold */
-  color: var(--color-primary-text);
-}
-
 .help-text {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
@@ -123,6 +99,18 @@
   padding: var(--space-md);
   border-radius: 8px;
   border: 1px solid var(--neutral-300);
+}
+
+/* Styles cho ô input nhập tên để review màu mượt mà hơn */
+#cat-name-input {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+  font-weight: bold;
+}
+#cat-name-input::placeholder {
+  color: inherit;
+  opacity: 0.5;
 }
 
 .color-picker-input {
@@ -147,13 +135,13 @@
 }
 
 .detail-title {
-  color: var(--text-chocolate, #4e342e);
+  color: var(--color-primary-text);
   margin: 0;
 }
 
 .detail-summary {
-  font-size: var(--font-size-base, 14px);
-  color: var(--color-text-secondary, #666);
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
   font-style: italic;
   margin-top: 8px;
   margin-bottom: 0;

@@ -380,6 +380,7 @@
     $("cat-text-input").value = DEFAULT_TEXT_COLOR;
     $("btn-save-cat").innerText = "Thêm";
     $("btn-cancel-cat").style.display = "none";
+    window.updateCategoryPreview();
   }
 
   async function loadCategoryList() {
@@ -428,12 +429,29 @@
   window.deleteKnowledge = (id, title) =>
     KnowledgeController.deleteArticle(id, title);
 
+  window.updateCategoryPreview = () => {
+    const nameInput = $("cat-name-input");
+    if (nameInput) {
+      nameInput.style.backgroundColor = $("cat-bg-input").value;
+      nameInput.style.color = $("cat-text-input").value;
+    }
+  };
+
   window.openCategoryModal = () => {
     resetCategoryForm();
     loadCategoryList();
     $("category-modal").style.display = "";
     $("category-modal").classList.add("flex");
+    if (!$("cat-bg-input").dataset.listenerAdded) {
+      $("cat-bg-input").addEventListener("input", window.updateCategoryPreview);
+      $("cat-text-input").addEventListener(
+        "input",
+        window.updateCategoryPreview,
+      );
+      $("cat-bg-input").dataset.listenerAdded = "true";
+    }
   };
+
   window.closeCategoryModal = () => {
     $("category-modal").classList.remove("flex");
   };
@@ -447,6 +465,7 @@
     $("cat-text-input").value = text;
     $("btn-save-cat").innerText = "Cập nhật";
     $("btn-cancel-cat").style.display = "inline-block";
+    window.updateCategoryPreview();
   };
 
   window.saveCategory = async () => {
@@ -459,6 +478,22 @@
       return window.showToast?.("Vui lòng nhập tên danh mục!", "error");
 
     try {
+      // 1. Kiểm tra xem tên danh mục đã tồn tại trong Database chưa
+      const checkSql = id
+        ? "SELECT id FROM knowledge_categories WHERE name = ? AND id != ?"
+        : "SELECT id FROM knowledge_categories WHERE name = ?";
+      const checkParams = id ? [name, id] : [name];
+
+      const existing = await API.db_query(checkSql, checkParams);
+
+      if (existing && existing.length > 0) {
+        return window.showToast?.(
+          "Tên danh mục này đã tồn tại! Vui lòng chọn tên khác.",
+          "error",
+        );
+      }
+
+      // 2. Nếu không trùng, tiến hành Thêm hoặc Cập nhật
       if (id) {
         await API.db_execute(
           "UPDATE knowledge_categories SET name = ?, bg_color = ?, text_color = ? WHERE id = ?",
@@ -466,8 +501,11 @@
         );
         window.showToast?.("Cập nhật danh mục thành công!", "success");
       } else {
+        // Nếu trường hợp danh mục cũ đã bị xóa (is_active = 0) có cùng tên,
+        // ở mức nâng cao bạn có thể khôi phục nó thay vì INSERT.
+        // Nhưng tạm thời, try-catch dưới đây sẽ bắt lỗi chặn đứng nếu hệ thống vẫn báo UNIQUE.
         await API.db_execute(
-          "INSERT INTO knowledge_categories (name, bg_color, text_color) VALUES (?, ?, ?)",
+          "INSERT INTO knowledge_categories (name, bg_color, text_color, is_active) VALUES (?, ?, ?, 1)",
           [name, bg, text],
         );
         window.showToast?.("Đã thêm danh mục mới!", "success");
@@ -477,7 +515,16 @@
       loadCategoryList();
       KnowledgeController.loadCategories();
     } catch (err) {
-      console.error(err);
+      // 3. Bắt lỗi an toàn nếu SQLite vẫn ném ra lỗi UNIQUE Constraint
+      if (err.message && err.message.includes("UNIQUE constraint failed")) {
+        window.showToast?.(
+          "Tên danh mục đã từng tồn tại trong hệ thống. Vui lòng chọn tên khác!",
+          "error",
+        );
+      } else {
+        window.showToast?.("Có lỗi xảy ra khi lưu danh mục!", "error");
+      }
+      console.error("Lỗi khi saveCategory:", err);
     }
   };
 
