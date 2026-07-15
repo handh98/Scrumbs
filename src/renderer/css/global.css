@@ -12,6 +12,8 @@
   --color-interactive-hover: #abcde8; /* was hover-blue */
   --color-menu-background: #dbeaf6; /* was menu-bg */
   --color-highlight-danger: #ff4d6d; /* was deep-pink */
+  --color-highlight-success: #4caf50; /* was success-green */
+  --color-highlight-info: #2196f3; /* was info-blue */
   --color-background-active-item: #fff3e8; /* was choc-bg-active */
   --color-tab-inactive-background: #f3ede2; /* was choc-tab-inactive */
   --color-tab-hover-background: #f3ede2; /* was choc-tab-hover */
@@ -1405,6 +1407,57 @@ table tbody tr:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   font-weight: bold;
   font-size: var(--font-size-md);
+}
+
+/* ========================================================= */
+/* --- KNOWLEDGE ARTICLE FORMATTING --- */
+/* ========================================================= */
+
+.article-content {
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-primary-text);
+  white-space: pre-line;
+}
+
+.article-content .wiki-link {
+  color: var(--color-interactive-text,);
+  background-color: var(--color-background-app);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border-bottom: 1px solid currentColor;
+}
+.article-content .wiki-link:hover {
+  background-color: var(--bg-step-view);
+  border-bottom-style: solid;
+}
+.label-bold-colon {
+  color: var(--neutral-900);
+  font-weight: 800;
+}
+
+.article-content .label-numbered {
+  color: var(--color-highlight-danger);
+  font-weight: 800;
+}
+
+/* 3. Tiêu đề dòng "[...] :" */
+.article-content .label-bracket {
+  color: var(--color-highlight-success);
+  font-weight: 800;
+}
+
+/* 4. In đậm (**) */
+.article-content strong {
+  color: var(--color-primary-text);
+  font-weight: 800;
+}
+
+/* 5. Highlight (==) */
+.article-content .text-highlight {
+  background-color: var(--color-text-secondary);
+  color: white;
+  padding: 0 4px;
 }
 
 @keyframes slideUp {

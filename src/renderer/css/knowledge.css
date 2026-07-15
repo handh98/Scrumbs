@@ -155,13 +155,6 @@
   border: 1px solid var(--neutral-300);
 }
 
-.article-content {
-  font-size: var(--font-size-lg);
-  line-height: var(--line-height-relaxed);
-  color: #3e2723;
-  white-space: pre-line;
-}
-
 .date-text {
   font-size: var(--font-size-sm);
   color: #999;

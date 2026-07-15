@@ -261,14 +261,6 @@
       this.loadArticles();
     }, 300),
 
-    parseWikiLinks(content) {
-      if (!content) return "";
-      return content.replace(/\[\[(.*?)\]\]/g, (match, title) => {
-        const cleanTitle = title.trim();
-        return `<a href="javascript:void(0)" class="wiki-link" onclick="event.stopPropagation(); window.KnowledgeController.goToArticleByTitle('${cleanTitle}')">${cleanTitle}</a>`;
-      });
-    },
-
     async goToArticleByTitle(title) {
       const res = await API.db_query(
         "SELECT id FROM baking_knowledge WHERE title = ? AND is_active = 1",
@@ -284,7 +276,7 @@
     async openDetail(id) {
       const article = await KnowledgeService.fetchArticleById(id);
       if (article) {
-        const contentHtml = this.parseWikiLinks(article.content);
+        const contentHtml = window.formatRichText(article.content);
         KnowledgeUI.showDetailModal(article, contentHtml);
       }
     },

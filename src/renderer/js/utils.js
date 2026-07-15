@@ -646,6 +646,43 @@ function toggleUpdateIndicator(show, percent = 0) {
   }
 }
 
+window.formatRichText = (text) => {
+  if (!text) return "";
+
+  let html = window.escHtml(text);
+
+  // 1. Wiki Links
+  html = html.replace(/\[\[(.*?)\]\]/g, (match, title) => {
+    const cleanTitle = title.trim();
+    return `<a href="javascript:void(0)" class="wiki-link" onclick="event.stopPropagation(); if(window.KnowledgeController) window.KnowledgeController.goToArticleByTitle('${cleanTitle}')">${cleanTitle}</a>`;
+  });
+
+  // 2. Bold và Highlight
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/==(.*?)==/g, '<mark class="text-highlight">$1</mark>');
+
+  // 3. Xử lý các loại Tiêu đề (Block level)
+
+  // Loại: 1. ... :
+  html = html.replace(
+    /^(\d+\.\s+.*:)$/gm,
+    '<span class="label-numbered">$1</span>',
+  );
+
+  // Loại: [Tiêu đề]:
+  html = html.replace(
+    /^(\[[^\]]+\]:)/gm,
+    '<span class="label-bracket">$1</span>',
+  );
+
+  // --- MỚI: Bắt các từ đầu dòng viết hoa kết thúc bằng dấu : (VD: Bước 1:, Lưu ý:) ---
+  html = html.replace(
+    /^([A-ZÀ-Ỹ][^:\n]{0,20}:)/gm,
+    '<span class="label-bold-colon">$1</span>',
+  );
+
+  return html;
+};
 async function initApp() {
   if (window.electronAPI?.db_query) {
     await setupGlobalUI();
