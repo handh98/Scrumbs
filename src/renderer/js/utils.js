@@ -663,9 +663,9 @@ window.formatRichText = (text) => {
 
   // 3. Xử lý các loại Tiêu đề (Block level)
 
-  // Loại: 1. ... :
+  // CẬP NHẬT MỚI: Bắt các loại 1. Tiêu đề: hoặc 1. Tiêu đề ?
   html = html.replace(
-    /^(\d+\.\s+.*:)$/gm,
+    /^(\d+\.\s+.*[:?])\s*$/gm,
     '<span class="label-numbered">$1</span>',
   );
 
@@ -675,7 +675,7 @@ window.formatRichText = (text) => {
     '<span class="label-bracket">$1</span>',
   );
 
-  // --- MỚI: Bắt các từ đầu dòng viết hoa kết thúc bằng dấu : (VD: Bước 1:, Lưu ý:) ---
+  // Bắt các từ đầu dòng viết hoa kết thúc bằng dấu : (VD: Bước 1:, Lưu ý:)
   html = html.replace(
     /^([A-ZÀ-Ỹ][^:\n]{0,20}:)/gm,
     '<span class="label-bold-colon">$1</span>',
@@ -683,6 +683,7 @@ window.formatRichText = (text) => {
 
   return html;
 };
+
 async function initApp() {
   if (window.electronAPI?.db_query) {
     await setupGlobalUI();

@@ -5,24 +5,121 @@
       Kiến Thức về Bánh
     </h2>
     <div class="header-actions">
+      <div class="switch-group" id="k-read-filter-group">
+        <button
+          class="switch-btn active"
+          data-value="ALL"
+          onclick="window.KnowledgeController.filterByReadStatus('ALL')"
+        >
+          <img src="src/renderer/assets/all.svg" class="icon" alt="All" />
+          <span class="btn-text">Tất cả</span>
+        </button>
+
+        <button
+          class="switch-btn"
+          data-value="READ"
+          onclick="window.KnowledgeController.filterByReadStatus('READ')"
+        >
+          <img src="src/renderer/assets/check.svg" class="icon" alt="Read" />
+          <span class="btn-text">Đã đọc</span>
+        </button>
+
+        <button
+          class="switch-btn"
+          data-value="UNREAD"
+          onclick="window.KnowledgeController.filterByReadStatus('UNREAD')"
+        >
+          <img src="src/renderer/assets/square.svg" class="icon" alt="Unread" />
+          <span class="btn-text">Chưa đọc</span>
+        </button>
+      </div>
+      <!-- Ô tìm kiếm -->
       <div class="search-wrapper">
         <input
           type="text"
           id="knowledge-search"
-          placeholder="🔍 Tìm kiến thức (Gluten, men...)"
+          placeholder="Tìm kiến thức (Gluten, men...)"
+          spellcheck="false"
           oninput="window.searchKnowledge()"
         />
       </div>
-      <button class="btn-secondary me-8" onclick="window.openCategoryModal()">
+
+      <!-- Nút Danh mục -->
+      <button class="btn-secondary" onclick="window.openCategoryModal()">
         🏷️ Danh mục
       </button>
-      <button class="btn-primary" onclick="window.openKnowledgeModal('add')">
-        + Thêm Kiến Thức
+
+      <!-- Nút Thêm Mới -->
+      <button
+        class="btn-primary btn-add-round"
+        style="
+          padding: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          width: 42px;
+          height: 42px;
+        "
+        onclick="window.openKnowledgeModal('add')"
+      >
+        <img src="src/renderer/assets/plus.svg" alt="Add Icon" class="icon" />
       </button>
     </div>
   </div>
 
-  <div class="category-filter-bar" id="knowledge-cat-filters"></div>
+  <!-- Search + Category List (Gộp chung mượt mà hơn) -->
+  <div class="unified-category-wrapper">
+    <div class="search-wrapper search-compact">
+      <input
+        type="text"
+        id="cat-tab-search"
+        placeholder="🔍 Tìm danh mục..."
+        spellcheck="false"
+        oninput="window.KnowledgeController.searchCategoryTabs(this.value)"
+      />
+    </div>
+
+    <div class="category-scroll-area" id="category-scroll-wrapper">
+      <button
+        class="scroll-arrow left-arrow"
+        onclick="window.KnowledgeController.scrollCategories(-1)"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+
+      <div
+        class="category-filter-bar tab-container scrollable-tabs grow"
+        id="knowledge-cat-filters"
+      ></div>
+
+      <button
+        class="scroll-arrow right-arrow"
+        onclick="window.KnowledgeController.scrollCategories(1)"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+
   <div class="knowledge-grid" id="knowledge-grid-body"></div>
   <div id="knowledge-pagination" class="pagination-wrapper"></div>
 </div>
@@ -47,6 +144,7 @@
           <input
             type="text"
             id="k-title"
+            spellcheck="false"
             placeholder="Ví dụ: Gluten, Bột nở, Ủ chậm..."
           />
         </div>
@@ -61,6 +159,7 @@
         <input
           type="text"
           id="k-summary"
+          spellcheck="false"
           placeholder="Tóm tắt ngắn gọn 1-2 câu về bài viết..."
         />
       </div>
@@ -77,6 +176,7 @@
         <textarea
           id="k-content"
           class="tall-textarea"
+          spellcheck="false"
           placeholder="Nhập kiến thức chuyên sâu tại đây..."
         ></textarea>
       </div>
@@ -97,42 +197,96 @@
 </div>
 
 <div id="knowledge-detail-modal" class="modal-overlay">
-  <div class="modal-card detail-card">
-    <div class="modal-header">
-      <div>
-        <span class="badge mb-5" id="view-k-badge">Danh mục</span>
-        <h2 id="view-k-title" class="detail-title">Tiêu đề</h2>
-        <p id="view-k-summary" class="detail-summary"></p>
-      </div>
-      <button
-        class="btn-close-modal"
-        onclick="window.closeKnowledgeDetailModal()"
-      >
-        ✕
-      </button>
-    </div>
-    <div class="modal-body read-body">
-      <div class="article-content" id="view-k-content"></div>
-    </div>
-    <div class="modal-footer footer-between">
-      <span class="date-text" id="view-k-date">Ngày tạo: --/--/----</span>
-      <div class="flex gap-sm">
-        <button class="btn-secondary btn-edit" id="view-k-btn-edit">
-          <img
-            src="src/renderer/assets/edit.svg"
-            alt="Edit Icon"
-            class="icon"
-          />
-        </button>
-        <button class="btn-secondary btn-delete" id="view-k-btn-delete">
-          <img
-            src="src/renderer/assets/trash.svg"
-            alt="Delete Icon"
-            class="icon"
-          />
+  <div
+    class="flex items-center justify-center gap-md w-full px-md"
+    style="max-width: 800px"
+  >
+    <button
+      class="modal-nav-btn"
+      style="pointer-events: auto"
+      onclick="window.KnowledgeController.navigateArticle(-1)"
+    >
+      ❮
+    </button>
+
+    <div
+      class="modal-card detail-card m-0"
+      style="width: 100%; flex: 1; pointer-events: auto"
+    >
+      <div class="modal-header">
+        <div>
+          <span class="badge mb-5" id="view-k-badge">Danh mục</span>
+          <h2 id="view-k-title" class="detail-title">Tiêu đề</h2>
+          <p id="view-k-summary" class="detail-summary"></p>
+        </div>
+        <button
+          class="btn-close-modal"
+          onclick="window.closeKnowledgeDetailModal()"
+        >
+          ✕
         </button>
       </div>
+
+      <div class="modal-body read-body">
+        <div class="article-content" id="view-k-content"></div>
+
+        <div
+          id="view-k-related"
+          class="related-articles-section mt-lg pt-md"
+          style="display: none"
+        >
+          <h4
+            style="
+              color: var(--color-text-secondary);
+              margin-bottom: var(--space-sm);
+            "
+          >
+            🔗 Các bài viết có liên kết:
+          </h4>
+          <div id="view-k-related-list" class="flex flex-wrap gap-sm"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer footer-between">
+        <div class="flex items-center gap-md">
+          <label class="read-checkbox-label m-0">
+            <input
+              type="checkbox"
+              id="view-k-read-status"
+              onchange="
+                window.KnowledgeController.toggleReadStatus(this.checked)
+              "
+            />
+            <span>Đã đọc</span>
+          </label>
+          <span class="date-text" id="view-k-date">Ngày tạo: --/--/----</span>
+        </div>
+        <div class="flex gap-sm">
+          <button class="btn-secondary btn-edit" id="view-k-btn-edit">
+            <img
+              src="src/renderer/assets/edit.svg"
+              alt="Edit Icon"
+              class="icon"
+            />
+          </button>
+          <button class="btn-secondary btn-delete" id="view-k-btn-delete">
+            <img
+              src="src/renderer/assets/trash.svg"
+              alt="Delete Icon"
+              class="icon"
+            />
+          </button>
+        </div>
+      </div>
     </div>
+
+    <button
+      class="modal-nav-btn"
+      style="pointer-events: auto"
+      onclick="window.KnowledgeController.navigateArticle(1)"
+    >
+      ❯
+    </button>
   </div>
 </div>
 
@@ -151,6 +305,7 @@
           <input
             type="text"
             id="cat-name-input"
+            spellcheck="false"
             placeholder="Ví dụ: Nguyên liệu, Lên men..."
           />
           <input type="hidden" id="cat-id-input" value="" />
@@ -191,14 +346,13 @@
           </button>
         </div>
       </div>
-
-      <div class="table-container cat-table-wrap">
+      <div class="cat-table-wrap">
         <table>
           <thead>
             <tr>
-              <th style="width: 40%">Tên danh mục</th>
-              <th style="width: 30%">Hiển thị mẫu</th>
-              <th style="width: 30%">Thao tác</th>
+              <th>Tên Danh Mục</th>
+              <th>Preview Màu</th>
+              <th class="text-center" style="width: 100px">Hành động</th>
             </tr>
           </thead>
           <tbody id="category-list-body"></tbody>

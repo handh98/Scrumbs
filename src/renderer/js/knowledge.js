@@ -5,11 +5,29 @@
   const DEFAULT_BG_COLOR = "#ffe9db";
   const DEFAULT_TEXT_COLOR = "#bc5a1a";
   const API = window.electronAPI;
-
-  // Nếu $ chưa được định nghĩa ở global, hãy khai báo dự phòng để tránh lỗi crash script
   const $ = window.$ || ((id) => document.getElementById(id));
 
-  // --- KnowledgeService: Database Interactions ---
+  const ReadStatusManager = {
+    getReadIds() {
+      const data = localStorage.getItem("baking_read_articles");
+      return data ? JSON.parse(data) : [];
+    },
+    isRead(id) {
+      return this.getReadIds().includes(id);
+    },
+    setRead(id, status) {
+      let ids = this.getReadIds();
+      // Ensure id is treated as Number uniformly
+      const nId = parseInt(id, 10);
+      if (status) {
+        if (!ids.includes(nId)) ids.push(nId);
+      } else {
+        ids = ids.filter((i) => i !== nId);
+      }
+      localStorage.setItem("baking_read_articles", JSON.stringify(ids));
+    },
+  };
+
   const KnowledgeService = {
     async fetchCategories() {
       return API.db_query(
@@ -57,7 +75,6 @@
     },
   };
 
-  // --- KnowledgeUI: DOM Manipulation & Rendering ---
   const KnowledgeUI = {
     renderCategoryFilters(categories, selectedId) {
       const filterBar = $("knowledge-cat-filters");
@@ -79,6 +96,11 @@
         .join("");
 
       filterBar.innerHTML = html;
+
+      setTimeout(() => {
+        if (window.KnowledgeController)
+          window.KnowledgeController.checkScrollArrows();
+      }, 50);
     },
 
     renderCategoryOptions(categories) {
@@ -101,32 +123,47 @@
 
       grid.innerHTML = articles
         .map((item) => {
-          const bgColor = item.bg_color || DEFAULT_BG_COLOR;
-          const textColor = item.text_color || DEFAULT_TEXT_COLOR;
-          const catName = item.cat_name || "Mặc định";
-          const date = item.created_at ? item.created_at.split(" ")[0] : "---";
-          const summary = item.summary || "Không có mô tả ngắn.";
+          const isRead = ReadStatusManager.isRead(item.id);
+          const readBadge = isRead
+            ? `<div class="badge-read">✅ Đã đọc</div>`
+            : "";
 
           return `
           <div class="knowledge-card" onclick="window.KnowledgeController.openDetail(${item.id})">
+            ${readBadge}
             <div>
-              <span class="badge" style="background: ${bgColor}; color: ${textColor};">${catName}</span>
+              <span class="badge mb-5" style="background: ${item.bg_color || DEFAULT_BG_COLOR}; color: ${item.text_color || DEFAULT_TEXT_COLOR};">${item.cat_name || "Mặc định"}</span>
               <h3>${item.title}</h3>
-              <p>${summary}</p>
+              <p>${item.summary || "Không có mô tả."}</p>
             </div>
-            <div class="card-footer">
-              <span style="font-size: 11px; color: #bcaaa4;">📅 ${date}</span>
-              <span style="font-size: 12px; color: ${DEFAULT_TEXT_COLOR}; font-weight: bold;">Đọc tiếp →</span>
-            </div>
-          </div>
-        `;
+          </div>`;
         })
         .join("");
     },
 
-    showDetailModal(article, contentHtml) {
+    showDetailModal(article, contentHtml, relatedLinks) {
       $("view-k-title").innerText = article.title;
       $("view-k-date").innerText = `Ngày lưu: ${article.created_at}`;
+
+      const readCheckbox = $("view-k-read-status");
+      if (readCheckbox)
+        readCheckbox.checked = ReadStatusManager.isRead(article.id);
+
+      $("view-k-content").innerHTML = contentHtml;
+
+      const relatedSection = $("view-k-related");
+      const relatedList = $("view-k-related-list");
+      if (relatedLinks && relatedLinks.length > 0) {
+        relatedSection.style.display = "block";
+        relatedList.innerHTML = relatedLinks
+          .map(
+            (link) =>
+              `<button class="related-link-btn" onclick="window.KnowledgeController.goToArticleByTitle('${link}')">🔗 ${link}</button>`,
+          )
+          .join("");
+      } else {
+        relatedSection.style.display = "none";
+      }
 
       const summaryEl = $("view-k-summary");
       if (summaryEl) {
@@ -139,11 +176,8 @@
       badge.style.background = article.bg_color || DEFAULT_BG_COLOR;
       badge.style.color = article.text_color || DEFAULT_TEXT_COLOR;
 
-      $("view-k-content").innerHTML = contentHtml;
-
-      // Sửa lỗi: Cần tắt modal hiện tại trước, có thể dùng setTimeout nhỏ để UX mượt hơn
       $("view-k-btn-edit").onclick = () => {
-        KnowledgeUI.hideDetailModal(); // Dùng object cụ thể để tránh lỗi mất context 'this'
+        KnowledgeUI.hideDetailModal();
         setTimeout(() => {
           window.KnowledgeController.openForm("edit", article.id);
         }, 150);
@@ -157,12 +191,11 @@
       };
 
       const modal = $("knowledge-detail-modal");
-      modal.style.display = ""; // Reset inline style nếu có
+      modal.style.display = "";
       modal.classList.add("flex");
     },
 
     hideDetailModal() {
-      // Sửa cách đóng modal: Dùng remove class flex thay vì display: none
       $("knowledge-detail-modal").classList.remove("flex");
     },
 
@@ -184,28 +217,67 @@
         }, 20);
       }
 
-      modal.style.display = ""; // Reset inline style nếu có
+      modal.style.display = "";
       modal.classList.add("flex");
     },
 
     hideFormModal() {
-      // Sửa cách đóng modal: Dùng remove class flex thay vì display: none
       $("knowledge-modal").classList.remove("flex");
     },
   };
 
-  // --- KnowledgeController: Orchestration & State ---
   const KnowledgeController = {
     state: {
       currentPage: 1,
       keyword: "",
       selectedCategory: "ALL",
       categories: [],
+      readFilter: "ALL",
+      currentArticles: [],
+      currentViewingId: null,
     },
 
     async init() {
       await this.loadCategories();
       await this.loadArticles();
+    },
+
+    scrollCategories(direction) {
+      const container = $("knowledge-cat-filters");
+      if (container) {
+        const scrollAmount = 250;
+        container.scrollBy({
+          left: direction * scrollAmount,
+          behavior: "smooth",
+        });
+      }
+    },
+
+    checkScrollArrows() {
+      const container = $("knowledge-cat-filters");
+      const wrapper = $("category-scroll-wrapper");
+      if (!container || !wrapper) return;
+
+      const leftArrow = wrapper.querySelector(".left-arrow");
+      const rightArrow = wrapper.querySelector(".right-arrow");
+
+      if (container.scrollWidth > container.clientWidth) {
+        leftArrow.style.display = "flex";
+        rightArrow.style.display = "flex";
+      } else {
+        leftArrow.style.display = "none";
+        rightArrow.style.display = "none";
+      }
+    },
+
+    searchCategoryTabs(query) {
+      const kw = window.removeAccents(query);
+      const tabs = document.querySelectorAll("#knowledge-cat-filters .tab-btn");
+      tabs.forEach((tab) => {
+        const name = window.removeAccents(tab.innerText);
+        tab.style.display = name.includes(kw) ? "" : "none";
+      });
+      setTimeout(() => this.checkScrollArrows(), 50);
     },
 
     async loadCategories() {
@@ -228,12 +300,40 @@
       this.loadArticles();
     },
 
+    filterByReadStatus(val) {
+      this.state.readFilter = val;
+      this.state.currentPage = 1;
+
+      const btns = document.querySelectorAll(
+        "#k-read-filter-group .switch-btn",
+      );
+      if (btns.length) {
+        btns.forEach((btn) => {
+          if (btn.dataset.value === val) {
+            btn.classList.add("active");
+          } else {
+            btn.classList.remove("active");
+          }
+        });
+      }
+
+      this.loadArticles();
+    },
+
     async loadArticles() {
       try {
-        const data = await KnowledgeService.fetchArticles(
+        let data = await KnowledgeService.fetchArticles(
           this.state.keyword,
           this.state.selectedCategory,
         );
+
+        if (this.state.readFilter === "READ") {
+          data = data.filter((item) => ReadStatusManager.isRead(item.id));
+        } else if (this.state.readFilter === "UNREAD") {
+          data = data.filter((item) => !ReadStatusManager.isRead(item.id));
+        }
+
+        this.state.currentArticles = data;
 
         const pagingResult = window.getPagination(
           data,
@@ -261,32 +361,66 @@
       this.loadArticles();
     }, 300),
 
-    async goToArticleByTitle(title) {
-      const res = await API.db_query(
-        "SELECT id FROM baking_knowledge WHERE title = ? AND is_active = 1",
-        [title],
-      );
-      if (res?.[0]) {
-        this.openDetail(res[0].id);
-      } else {
-        window.showToast?.(`Chủ đề "${title}" chưa được biên soạn!`, "warning");
-      }
-    },
-
-    async openDetail(id) {
-      const article = await KnowledgeService.fetchArticleById(id);
-      if (article) {
-        const contentHtml = window.formatRichText(article.content);
-        KnowledgeUI.showDetailModal(article, contentHtml);
-      }
-    },
-
-    async openForm(mode, id = null) {
+    async openForm(mode, id) {
       let article = null;
       if (mode === "edit" && id) {
         article = await KnowledgeService.fetchArticleById(id);
       }
       KnowledgeUI.showFormModal(mode, article);
+    },
+
+    async goToArticleByTitle(title) {
+      const rawData = await API.db_query(
+        "SELECT id, title FROM baking_knowledge WHERE is_active = 1",
+      );
+      const kw = window.removeAccents(title);
+      const match = rawData.find((k) => window.removeAccents(k.title) === kw);
+      if (match) {
+        this.openDetail(match.id);
+      } else {
+        window.showToast?.(`Chủ đề "${title}" chưa được biên soạn!`, "warning");
+      }
+    },
+
+    toggleReadStatus(isChecked) {
+      const id = this.state.currentViewingId;
+      if (!id) return;
+      ReadStatusManager.setRead(id, isChecked);
+      this.loadArticles();
+    },
+
+    async openDetail(id) {
+      const article = await KnowledgeService.fetchArticleById(id);
+      if (article) {
+        this.state.currentViewingId = article.id;
+        const contentHtml = window.formatRichText(article.content);
+
+        const links = [];
+        const regex = /\[\[(.*?)\]\]/g;
+        let match;
+        while ((match = regex.exec(article.content)) !== null) {
+          links.push(match[1].trim());
+        }
+        const uniqueLinks = [...new Set(links)];
+
+        KnowledgeUI.showDetailModal(article, contentHtml, uniqueLinks);
+      }
+    },
+
+    navigateArticle(direction) {
+      const list = this.state.currentArticles;
+      if (!list || list.length === 0) return;
+
+      const currentIndex = list.findIndex(
+        (a) => a.id === this.state.currentViewingId,
+      );
+      if (currentIndex === -1) return;
+
+      let nextIndex = currentIndex + direction;
+      if (nextIndex < 0) nextIndex = list.length - 1;
+      if (nextIndex >= list.length) nextIndex = 0;
+
+      this.openDetail(list[nextIndex].id);
     },
 
     async saveArticle() {
@@ -318,24 +452,29 @@
           );
           window.showToast?.("Đã thêm bài viết thành công! ✨", "success");
 
-          // Reset filters and pagination so the new article is visible
-          this.state.currentPage = 1;
-          this.state.keyword = "";
-          this.state.selectedCategory = "ALL";
-
           const searchInput = $("knowledge-search");
           if (searchInput) searchInput.value = "";
-          KnowledgeUI.renderCategoryFilters(this.state.categories, "ALL");
+          this.state.keyword = "";
         } else {
           await API.db_execute(
             "UPDATE baking_knowledge SET category_id = ?, title = ?, summary = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             [parseInt(category_id, 10), title, summary, content, id],
           );
+
+          // HUỶ TICK ĐÃ ĐỌC KHI ĐƯỢC UPDATE (Yêu cầu mới)
+          ReadStatusManager.setRead(id, false);
+
           window.showToast?.("Đã cập nhật bài viết thành công!", "success");
         }
 
-        KnowledgeUI.hideFormModal();
-        this.loadArticles();
+        await this.loadArticles();
+
+        if (mode === "edit") {
+          KnowledgeUI.hideFormModal();
+          this.openDetail(id);
+        } else {
+          KnowledgeUI.hideFormModal();
+        }
       } catch (err) {
         console.error(err);
       }
@@ -347,7 +486,6 @@
         `Bạn có chắc chắn muốn xóa bài viết về "${title}" không?`,
       );
       if (!confirmed) return;
-
       try {
         await API.db_execute(
           "UPDATE baking_knowledge SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -360,10 +498,6 @@
       }
     },
   };
-
-  // ==========================================
-  // CATEGORY MANAGEMENT
-  // ==========================================
 
   function resetCategoryForm() {
     $("cat-id-input").value = "";
@@ -407,9 +541,6 @@
     }
   }
 
-  // ==========================================
-  // GLOBAL EXPORTS FOR HTML WIRING
-  // ==========================================
   window.KnowledgeController = KnowledgeController;
   window.loadKnowledge = () => KnowledgeController.loadArticles();
   window.searchKnowledge = () => KnowledgeController.search();
@@ -470,7 +601,6 @@
       return window.showToast?.("Vui lòng nhập tên danh mục!", "error");
 
     try {
-      // 1. Kiểm tra xem tên danh mục đã tồn tại trong Database chưa
       const checkSql = id
         ? "SELECT id FROM knowledge_categories WHERE name = ? AND id != ?"
         : "SELECT id FROM knowledge_categories WHERE name = ?";
@@ -485,7 +615,6 @@
         );
       }
 
-      // 2. Nếu không trùng, tiến hành Thêm hoặc Cập nhật
       if (id) {
         await API.db_execute(
           "UPDATE knowledge_categories SET name = ?, bg_color = ?, text_color = ? WHERE id = ?",
@@ -493,9 +622,6 @@
         );
         window.showToast?.("Cập nhật danh mục thành công!", "success");
       } else {
-        // Nếu trường hợp danh mục cũ đã bị xóa (is_active = 0) có cùng tên,
-        // ở mức nâng cao bạn có thể khôi phục nó thay vì INSERT.
-        // Nhưng tạm thời, try-catch dưới đây sẽ bắt lỗi chặn đứng nếu hệ thống vẫn báo UNIQUE.
         await API.db_execute(
           "INSERT INTO knowledge_categories (name, bg_color, text_color, is_active) VALUES (?, ?, ?, 1)",
           [name, bg, text],
@@ -507,23 +633,15 @@
       loadCategoryList();
       KnowledgeController.loadCategories();
     } catch (err) {
-      // 3. Bắt lỗi an toàn nếu SQLite vẫn ném ra lỗi UNIQUE Constraint
-      if (err.message && err.message.includes("UNIQUE constraint failed")) {
-        window.showToast?.(
-          "Tên danh mục đã từng tồn tại trong hệ thống. Vui lòng chọn tên khác!",
-          "error",
-        );
-      } else {
-        window.showToast?.("Có lỗi xảy ra khi lưu danh mục!", "error");
-      }
-      console.error("Lỗi khi saveCategory:", err);
+      window.showToast?.("Có lỗi xảy ra khi lưu danh mục!", "error");
+      console.error(err);
     }
   };
 
   window.deleteCategory = async (id, name) => {
     const confirmed = await window.showConfirm(
       "Xóa danh mục",
-      `Bạn có chắc muốn xóa danh mục "${name}"? Các bài viết thuộc danh mục này sẽ tạm thời bị ẩn khỏi lưới hiển thị.`,
+      `Bạn có chắc muốn xóa danh mục "${name}"?`,
     );
     if (!confirmed) return;
 
@@ -553,7 +671,6 @@
   };
   window.initKnowledgePage = window.loadKnowledgePage;
 
-  // Giải pháp Clean Code: Kích hoạt NGAY LẬP TỨC khi cấu trúc HTML thay đổi
   const observer = new MutationObserver(() => {
     const grid = $("knowledge-grid-body");
     if (grid && !grid.dataset.loadedOnce) {
@@ -562,6 +679,13 @@
     }
   });
 
-  // Bật chế độ lắng nghe sự thay đổi giao diện của toàn bộ ứng dụng
   observer.observe(document.body, { childList: true, subtree: true });
+
+  window.addEventListener(
+    "resize",
+    window.debounce(() => {
+      if (window.KnowledgeController)
+        window.KnowledgeController.checkScrollArrows();
+    }, 150),
+  );
 })();
