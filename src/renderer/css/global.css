@@ -444,6 +444,9 @@ body {
 .w-full {
   width: 100% !important;
 }
+.text-center {
+  text-align: center !important;
+}
 
 .form-group {
   flex: 1;
@@ -754,6 +757,13 @@ table td {
 }
 table tbody tr:hover {
   background-color: var(--color-button-primary-hover);
+}
+
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-md);
+  gap: 10px;
 }
 
 /* --- BADGE SYSTEM --- */
