@@ -109,6 +109,10 @@
   --hover-lift: translateY(-2px);
 }
 
+.mt-10 {
+  margin-top: 10px !important;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -588,6 +592,26 @@ label {
 }
 .btn-edit:hover .icon {
   color: var(--color-interactive-primary);
+}
+
+/* --- Bổ sung CSS cho nút Xóa dòng (X) --- */
+.btn-delete-row {
+  background: transparent; /* Xóa nền xám mặc định */
+  border: none;
+  color: var(--color-highlight-danger); /* Màu đỏ cảnh báo */
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  padding: 6px 8px; /* Tăng diện tích bấm */
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-base); /* Hiệu ứng mượt mà */
+}
+
+/* Hiệu ứng Hover cho nút X */
+.btn-delete-row:hover {
+  transform: scale(1.15); /* Phóng to nhẹ */
 }
 
 input,
