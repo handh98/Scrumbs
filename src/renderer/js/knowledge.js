@@ -5,8 +5,6 @@
   const DEFAULT_BG_COLOR = "#ffe9db";
   const DEFAULT_TEXT_COLOR = "#bc5a1a";
   const API = window.electronAPI;
-  const $ = window.$ || ((id) => document.getElementById(id));
-
   const ReadStatusManager = {
     getReadIds() {
       const data = localStorage.getItem("baking_read_articles");

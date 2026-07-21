@@ -379,3 +379,49 @@ table td img {
   border: none !important;
   color: var(--color-primary-text) !important;
 }
+
+.recipes-main-table th:nth-child(1),
+.recipes-main-table td:nth-child(1) {
+  width: 50px;
+  text-align: center;
+}
+
+/* 3. Cột 2: Tên công thức bánh - Cần nhiều diện tích nhất */
+.recipes-main-table th:nth-child(2),
+.recipes-main-table td:nth-child(2) {
+  width: 25%; /* Hoặc để 'auto' để tự chiếm phần dư */
+}
+
+/* 4. Cột 3: Thời gian làm */
+.recipes-main-table th:nth-child(3),
+.recipes-main-table td:nth-child(3) {
+  width: 120px;
+  text-align: center;
+}
+
+/* 5. Cột 4: Định lượng */
+.recipes-main-table th:nth-child(4),
+.recipes-main-table td:nth-child(4) {
+  width: 100px;
+  text-align: center;
+}
+
+/* 6. Cột 5: Chi phí cốt (Giá vốn) - Cần diện tích vừa đủ cho số tiền */
+.recipes-main-table th:nth-child(5),
+.recipes-main-table td:nth-child(5) {
+  width: 160px;
+  text-align: center;
+}
+
+/* 7. Cột 6: Ghi chú - Cho chiếm phần diện tích linh hoạt còn lại */
+.recipes-main-table th:nth-child(6),
+.recipes-main-table td:nth-child(6) {
+  width: auto;
+}
+
+/* 8. Cột 7: Thao tác - Cần đủ chỗ cho 3 nút bấm (icon) */
+.recipes-main-table th:nth-child(7),
+.recipes-main-table td:nth-child(7) {
+  width: 200px;
+  text-align: center;
+}

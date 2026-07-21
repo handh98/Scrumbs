@@ -2,8 +2,6 @@
   const itemsPerPage = 6;
   const API = window.electronAPI;
 
-  const $ = (id) => document.getElementById(id);
-
   window.orderState = {
     currentPage: 1,
     keyword: "",
@@ -174,7 +172,7 @@
         oldStatus === "pending" &&
         (newStatus === "processing" || newStatus === "completed")
       ) {
-        await deductInventoryFromOrder(id);
+        await window.deductInventoryFromOrder(id);
       }
 
       // Nếu đơn đang làm/đã xong bị Hủy hoặc Trả về Pending: HOÀN KHO
@@ -182,169 +180,24 @@
         (oldStatus === "processing" || oldStatus === "completed") &&
         (newStatus === "cancelled" || newStatus === "pending")
       ) {
-        await restoreInventoryFromOrder(id);
+        await window.restoreInventoryFromOrder(id);
       }
 
-      await API.db_execute("UPDATE orders SET status = ? WHERE id = ?", [
+      // Cập nhật trạng thái trong DB
+      await API.db_run("UPDATE orders SET status = ? WHERE id = ?", [
         newStatus,
         id,
       ]);
-      window.showToast?.("Cập nhật trạng thái thành công!", "success");
+
+      selectEl.setAttribute("data-original", newStatus);
+      await window.showLoader(false);
       window.loadOrders();
-    } catch (error) {
-      console.error("Lỗi:", error);
-      window.showToast?.(error.message || "Lỗi cập nhật", "error");
+    } catch (err) {
+      console.error("Lỗi cập nhật trạng thái đơn hàng:", err);
       selectEl.value = oldStatus;
-    } finally {
       await window.showLoader(false);
     }
   };
-
-  async function deductInventoryFromOrder(orderId) {
-    try {
-      await API.db_execute("BEGIN TRANSACTION");
-      const [order] = await API.db_query(
-        "SELECT items_json FROM orders WHERE id = ?",
-        [orderId],
-      );
-      if (!order || !order.items_json) return;
-
-      const items = JSON.parse(order.items_json);
-      for (const item of items) {
-        const itemLabel =
-          item.filling_name && item.filling_name !== "Không nhân"
-            ? `${item.base_name} (${item.filling_name})`
-            : item.base_name;
-
-        const ingredientsNeeded = await API.db_query(
-          `
-          SELECT ri.ingredient_id, (ri.qty * mr.ratio * ? / CAST(r.output AS REAL)) AS total_needed FROM menu_recipes mr JOIN recipe_ingredients ri ON mr.recipe_id = ri.recipe_id JOIN recipes r ON mr.recipe_id = r.id WHERE mr.menu_item_id = ?
-          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_ingredients WHERE menu_item_id = ?
-          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_packaging WHERE menu_item_id = ?
-        `,
-          [
-            item.qty,
-            item.menu_id,
-            item.qty,
-            item.menu_id,
-            item.qty,
-            item.menu_id,
-          ],
-        );
-
-        if (item.filling_id) {
-          const fillingIngs = await API.db_query(
-            "SELECT ri.ingredient_id, (ri.qty * ? / CAST(r.output AS REAL)) as total_needed FROM recipe_ingredients ri JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = ?",
-            [item.qty, item.filling_id],
-          );
-          ingredientsNeeded.push(...fillingIngs);
-        }
-
-        for (const ing of ingredientsNeeded) {
-          let remainingToDeduct = ing.total_needed;
-          const batches = await API.db_query(
-            "SELECT id, qty_remaining FROM inventory_batches WHERE ingredient_id = ? AND qty_remaining > 0 ORDER BY expiry_date ASC, import_date ASC",
-            [ing.ingredient_id],
-          );
-
-          for (const batch of batches) {
-            if (remainingToDeduct < 0.0001) break;
-            if (batch.qty_remaining >= remainingToDeduct) {
-              await API.db_execute(
-                "UPDATE inventory_batches SET qty_remaining = qty_remaining - ? WHERE id = ?",
-                [remainingToDeduct, batch.id],
-              );
-              remainingToDeduct = 0;
-            } else {
-              remainingToDeduct -= batch.qty_remaining;
-              await API.db_execute(
-                "UPDATE inventory_batches SET qty_remaining = 0 WHERE id = ?",
-                [batch.id],
-              );
-            }
-          }
-          if (remainingToDeduct > 0.0001) {
-            const [ingInfo] = await API.db_query(
-              "SELECT name, unit FROM ingredients WHERE id = ?",
-              [ing.ingredient_id],
-            );
-            throw new Error(
-              `Kho thiếu ${window.formatNumber(remainingToDeduct)} ${ingInfo.unit} "${ingInfo.name}" cho món "${itemLabel}"!`,
-            );
-          }
-        }
-      }
-      await API.db_execute("COMMIT");
-    } catch (err) {
-      await API.db_execute("ROLLBACK");
-      throw err;
-    }
-  }
-
-  // HÀM HOÀN TRẢ KHO MỚI
-  async function restoreInventoryFromOrder(orderId) {
-    try {
-      await API.db_execute("BEGIN TRANSACTION");
-      const [order] = await API.db_query(
-        "SELECT items_json FROM orders WHERE id = ?",
-        [orderId],
-      );
-      if (!order || !order.items_json) return;
-
-      const items = JSON.parse(order.items_json);
-      for (const item of items) {
-        const ingredientsNeeded = await API.db_query(
-          `
-          SELECT ri.ingredient_id, (ri.qty * mr.ratio * ? / CAST(r.output AS REAL)) AS total_needed FROM menu_recipes mr JOIN recipe_ingredients ri ON mr.recipe_id = ri.recipe_id JOIN recipes r ON mr.recipe_id = r.id WHERE mr.menu_item_id = ?
-          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_ingredients WHERE menu_item_id = ?
-          UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_packaging WHERE menu_item_id = ?
-        `,
-          [
-            item.qty,
-            item.menu_id,
-            item.qty,
-            item.menu_id,
-            item.qty,
-            item.menu_id,
-          ],
-        );
-
-        if (item.filling_id) {
-          const fillingIngs = await API.db_query(
-            "SELECT ri.ingredient_id, (ri.qty * ? / CAST(r.output AS REAL)) as total_needed FROM recipe_ingredients ri JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = ?",
-            [item.qty, item.filling_id],
-          );
-          ingredientsNeeded.push(...fillingIngs);
-        }
-
-        // Tạo 1 lô hàng "Hoàn trả ảo" cho từng nguyên liệu để ghi nhận lại số lượng vào kho
-        for (const ing of ingredientsNeeded) {
-          if (ing.total_needed <= 0) continue;
-          // Lấy giá bình quân hiện hành
-          const [ingInfo] = await API.db_query(
-            "SELECT unit_price FROM ingredients WHERE id = ?",
-            [ing.ingredient_id],
-          );
-          const refundPrice = (ingInfo.unit_price || 0) * ing.total_needed;
-
-          await API.db_execute(
-            `INSERT INTO inventory_batches (ingredient_id, qty_imported, qty_remaining, import_date, purchase_price, note) VALUES (?, ?, ?, DATE('now'), ?, ?)`,
-            [
-              ing.ingredient_id,
-              ing.total_needed,
-              ing.total_needed,
-              refundPrice,
-              `[♻️ Hoàn trả kho do Hủy/Lùi đơn #${orderId}]`,
-            ],
-          );
-        }
-      }
-      await API.db_execute("COMMIT");
-    } catch (err) {
-      await API.db_execute("ROLLBACK");
-      throw err;
-    }
-  }
 
   // --- CRUD MODAL ĐƠN HÀNG ---
   window.openOrderModal = async (mode = "add", id = null) => {

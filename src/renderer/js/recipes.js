@@ -2,9 +2,6 @@
   const itemsPerPage = 6;
   const API = window.electronAPI;
 
-  const $ = (id) => document.getElementById(id);
-  const $$ = (selector) => document.querySelectorAll(selector);
-
   let recipePlaceholderUrl = null;
 
   window.recipeState = {
@@ -209,7 +206,7 @@
             <td class="text-center">${item.cook_time ? item.cook_time + " phút" : "---"}</td>
             <td class="text-center">${item.output || "1"}</td>
             <td class="text-danger font-weight-bold text-center">${window.formatNumber(Math.round(cost))} đ</td>
-            <td class="note-column">${escAttr(item.note || "")}</td>
+            <td class="text-center note-column has-tooltip" data-note="${escAttr(item.note || "")}">${escAttr(item.note || "")}</td>
             <td class="action-column text-center">
                 <button class="btn-secondary btn-view" onclick="window.openRecipeModal('view', ${item.id})">
                   <img src="src/renderer/assets/view.svg" class="icon" />

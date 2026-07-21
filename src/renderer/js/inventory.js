@@ -2,8 +2,6 @@
   const itemsPerPage = 8;
   const API = window.electronAPI;
 
-  const $ = (id) => document.getElementById(id);
-
   window.invState = {
     currentPage: 1,
     keyword: "",

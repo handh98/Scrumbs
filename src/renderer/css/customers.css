@@ -28,10 +28,6 @@
   color: var(--text-chocolate);
 }
 
-.mt-15 {
-  margin-top: 15px;
-}
-
 .stats-badge-wrapper {
   display: flex;
   flex-direction: column;

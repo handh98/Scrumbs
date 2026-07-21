@@ -557,6 +557,170 @@ window.validatePositiveNumber = (value, fieldName = "Giá trị") => {
 };
 
 // ==========================================
+// --- SHARED INVENTORY & ORDER HELPERS ---
+// ==========================================
+
+/**
+ * Deducts ingredient stock from inventory batches for a given order.
+ * @param {number} orderId
+ */
+window.deductInventoryFromOrder = async function (orderId) {
+  const API = window.electronAPI;
+  try {
+    await API.db_execute("BEGIN TRANSACTION");
+    const [order] = await API.db_query(
+      "SELECT items_json FROM orders WHERE id = ?",
+      [orderId],
+    );
+    if (!order || !order.items_json) {
+      await API.db_execute("COMMIT");
+      return;
+    }
+
+    const items = JSON.parse(order.items_json);
+    for (const item of items) {
+      const itemLabel =
+        item.filling_name && item.filling_name !== "Không nhân"
+          ? `${item.base_name} (${item.filling_name})`
+          : item.base_name;
+
+      const ingredientsNeeded = await API.db_query(
+        `
+        SELECT ri.ingredient_id, (ri.qty * mr.ratio * ? / CAST(r.output AS REAL)) AS total_needed FROM menu_recipes mr JOIN recipe_ingredients ri ON mr.recipe_id = ri.recipe_id JOIN recipes r ON mr.recipe_id = r.id WHERE mr.menu_item_id = ?
+        UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_ingredients WHERE menu_item_id = ?
+        UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_packaging WHERE menu_item_id = ?
+      `,
+        [
+          item.qty,
+          item.menu_id,
+          item.qty,
+          item.menu_id,
+          item.qty,
+          item.menu_id,
+        ],
+      );
+
+      if (item.filling_id) {
+        const fillingIngs = await API.db_query(
+          "SELECT ri.ingredient_id, (ri.qty * ? / CAST(r.output AS REAL)) as total_needed FROM recipe_ingredients ri JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = ?",
+          [item.qty, item.filling_id],
+        );
+        ingredientsNeeded.push(...fillingIngs);
+      }
+
+      for (const ing of ingredientsNeeded) {
+        let remainingToDeduct = ing.total_needed;
+        const batches = await API.db_query(
+          "SELECT id, qty_remaining FROM inventory_batches WHERE ingredient_id = ? AND qty_remaining > 0 ORDER BY expiry_date ASC, import_date ASC",
+          [ing.ingredient_id],
+        );
+
+        for (const batch of batches) {
+          if (remainingToDeduct < 0.0001) break;
+          if (batch.qty_remaining >= remainingToDeduct) {
+            await API.db_execute(
+              "UPDATE inventory_batches SET qty_remaining = qty_remaining - ? WHERE id = ?",
+              [remainingToDeduct, batch.id],
+            );
+            remainingToDeduct = 0;
+          } else {
+            remainingToDeduct -= batch.qty_remaining;
+            await API.db_execute(
+              "UPDATE inventory_batches SET qty_remaining = 0 WHERE id = ?",
+              [batch.id],
+            );
+          }
+        }
+        if (remainingToDeduct > 0.0001) {
+          const [ingInfo] = await API.db_query(
+            "SELECT name, unit FROM ingredients WHERE id = ?",
+            [ing.ingredient_id],
+          );
+          throw new Error(
+            `Kho thiếu ${window.formatNumber(remainingToDeduct)} ${ingInfo.unit} "${ingInfo.name}" cho món "${itemLabel}"!`,
+          );
+        }
+      }
+    }
+    await API.db_execute("COMMIT");
+  } catch (err) {
+    await API.db_execute("ROLLBACK");
+    throw err;
+  }
+};
+
+/**
+ * Restores ingredient stock into inventory batches for a cancelled/reverted order.
+ * @param {number} orderId
+ * @param {string} [noteSuffix]
+ */
+window.restoreInventoryFromOrder = async function (orderId, noteSuffix = "") {
+  const API = window.electronAPI;
+  try {
+    await API.db_execute("BEGIN TRANSACTION");
+    const [order] = await API.db_query(
+      "SELECT items_json FROM orders WHERE id = ?",
+      [orderId],
+    );
+    if (!order || !order.items_json) {
+      await API.db_execute("COMMIT");
+      return;
+    }
+
+    const items = JSON.parse(order.items_json);
+    for (const item of items) {
+      const ingredientsNeeded = await API.db_query(
+        `
+        SELECT ri.ingredient_id, (ri.qty * mr.ratio * ? / CAST(r.output AS REAL)) AS total_needed FROM menu_recipes mr JOIN recipe_ingredients ri ON mr.recipe_id = ri.recipe_id JOIN recipes r ON mr.recipe_id = r.id WHERE mr.menu_item_id = ?
+        UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_ingredients WHERE menu_item_id = ?
+        UNION ALL SELECT ingredient_id, (qty * ?) AS total_needed FROM menu_packaging WHERE menu_item_id = ?
+      `,
+        [
+          item.qty,
+          item.menu_id,
+          item.qty,
+          item.menu_id,
+          item.qty,
+          item.menu_id,
+        ],
+      );
+
+      if (item.filling_id) {
+        const fillingIngs = await API.db_query(
+          "SELECT ri.ingredient_id, (ri.qty * ? / CAST(r.output AS REAL)) as total_needed FROM recipe_ingredients ri JOIN recipes r ON ri.recipe_id = r.id WHERE ri.recipe_id = ?",
+          [item.qty, item.filling_id],
+        );
+        ingredientsNeeded.push(...fillingIngs);
+      }
+
+      for (const ing of ingredientsNeeded) {
+        if (ing.total_needed <= 0) continue;
+        const [ingInfo] = await API.db_query(
+          "SELECT unit_price FROM ingredients WHERE id = ?",
+          [ing.ingredient_id],
+        );
+        const refundPrice = (ingInfo.unit_price || 0) * ing.total_needed;
+
+        await API.db_execute(
+          `INSERT INTO inventory_batches (ingredient_id, qty_imported, qty_remaining, import_date, purchase_price, note) VALUES (?, ?, ?, DATE('now'), ?, ?)`,
+          [
+            ing.ingredient_id,
+            ing.total_needed,
+            ing.total_needed,
+            refundPrice,
+            `[♻️ Hoàn trả kho do Hủy/Lùi đơn #${orderId}${noteSuffix ? " " + noteSuffix : ""}]`,
+          ],
+        );
+      }
+    }
+    await API.db_execute("COMMIT");
+  } catch (err) {
+    await API.db_execute("ROLLBACK");
+    throw err;
+  }
+};
+
+// ==========================================
 // --- APP CORE & INITIALIZATION ---
 // ==========================================
 

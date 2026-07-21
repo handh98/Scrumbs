@@ -49,7 +49,10 @@
   --neutral-850: #666;
   --neutral-900: #333333; /* Đậm hơn để dễ đọc chi tiết bài */
 
-  /* Extended Palette */
+  /* Extended Palette & Alias */
+  --text-chocolate: #5d4037;
+  --deep-pink: #ff4d6d;
+  --pastel-pink-dark: #f2bac9;
   --primary-orange: #bc5a1a;
   --secondary-orange: #cf6a4c;
   --success-green: #2ecc71;
@@ -61,6 +64,18 @@
   --border-step-view: #f3ede9;
   --color-overlay-bg: rgba(121, 85, 72, 0.3);
   --color-indigo: #6366f1;
+
+  /* Status Colors */
+  --status-pending-bg: #fff3e0;
+  --status-pending-text: #e65100;
+  --status-processing-bg: #e3f2fd;
+  --status-processing-text: #1565c0;
+  --status-completed-bg: #e8f5e9;
+  --status-completed-text: #2e7d32;
+  --status-cancelled-bg: #ffebee;
+  --status-cancelled-text: #c62828;
+  --status-success-text: #2e7d32;
+  --status-error-text: #c62828;
 
   /* Font Size System */
   --font-size-xxs: 10px;
@@ -779,6 +794,9 @@ table td {
   border-bottom: 1px solid var(--neutral-150);
   color: var(--color-text-secondary);
 }
+table tbody tr:nth-child(even) {
+  background-color: var(--neutral-50);
+}
 table tbody tr:hover {
   background-color: var(--color-button-primary-hover);
 }
@@ -790,6 +808,18 @@ table tbody tr:hover {
   gap: 10px;
 }
 
+table:has(.note-column) {
+  table-layout: fixed;
+  width: 100%;
+  border-spacing: 0;
+}
+
+.note-column {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
 /* --- BADGE SYSTEM --- */
 .badge {
   display: inline-block;
@@ -799,6 +829,81 @@ table tbody tr:hover {
   font-weight: bold;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.badge-pending,
+.status-badge.status-pending {
+  background-color: var(--status-pending-bg);
+  color: var(--status-pending-text);
+  border: 1px solid var(--status-pending-text);
+}
+.badge-processing,
+.status-badge.status-processing {
+  background-color: var(--status-processing-bg);
+  color: var(--status-processing-text);
+  border: 1px solid var(--status-processing-text);
+}
+.badge-completed,
+.status-badge.status-completed,
+.status-badge.status-ok {
+  background-color: var(--status-completed-bg);
+  color: var(--status-completed-text);
+  border: 1px solid var(--status-completed-text);
+}
+.badge-cancelled,
+.status-badge.status-cancelled,
+.status-badge.status-empty {
+  background-color: var(--status-cancelled-bg);
+  color: var(--status-cancelled-text);
+  border: 1px solid var(--status-cancelled-text);
+}
+.status-badge.status-low {
+  background-color: var(--status-pending-bg);
+  color: var(--status-pending-text);
+  border: 1px solid var(--status-pending-text);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: var(--font-size-xs);
+  font-weight: bold;
+  text-align: center;
+}
+
+.status-quick-select,
+.quick-status-select {
+  font-size: var(--font-size-sm);
+  font-weight: bold;
+  padding: 4px 24px 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background-position: right 6px center;
+}
+.status-quick-select.status-pending,
+.quick-status-select.status-pending {
+  background-color: var(--status-pending-bg);
+  color: var(--status-pending-text);
+  border-color: var(--status-pending-text);
+}
+.status-quick-select.status-processing,
+.quick-status-select.status-processing {
+  background-color: var(--status-processing-bg);
+  color: var(--status-processing-text);
+  border-color: var(--status-processing-text);
+}
+.status-quick-select.status-completed,
+.quick-status-select.status-completed {
+  background-color: var(--status-completed-bg);
+  color: var(--status-completed-text);
+  border-color: var(--status-completed-text);
+}
+.status-quick-select.status-cancelled,
+.quick-status-select.status-cancelled {
+  background-color: var(--status-cancelled-bg);
+  color: var(--status-cancelled-text);
+  border-color: var(--status-cancelled-text);
 }
 
 /* --- PAGINATION --- */
